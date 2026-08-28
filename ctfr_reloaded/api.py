@@ -79,7 +79,7 @@ def create_app():
         from fastapi import FastAPI, HTTPException, Query
         from fastapi.responses import HTMLResponse, StreamingResponse
     except ImportError as exc:
-        raise RuntimeError('Instala dependencias API: pip install "ctfr-reloaded[api]"') from exc
+        raise RuntimeError("Instala o actualiza el paquete: pip install ctfr-reloaded") from exc
 
     app = FastAPI(
         title="CTFR-Reloaded API",
@@ -256,6 +256,6 @@ def run_server(host="127.0.0.1", port=DEFAULT_API_PORT):
     try:
         import uvicorn
     except ImportError as exc:
-        raise RuntimeError('Instala dependencias API: pip install "ctfr-reloaded[api]"') from exc
+        raise RuntimeError("Instala o actualiza el paquete: pip install ctfr-reloaded") from exc
 
     uvicorn.run(create_app(), host=host, port=port)

@@ -357,11 +357,11 @@ def save_html_output(results, output_file):
 
 
 def save_pdf_output(results, output_file):
-    """Genera PDF simple. Requiere fpdf2 (pip install ctfr-reloaded[pdf])."""
+    """Genera PDF simple."""
     try:
         from fpdf import FPDF
     except ImportError as exc:
-        raise RuntimeError('Instala soporte PDF: pip install "ctfr-reloaded[pdf]"') from exc
+        raise RuntimeError("Instala o actualiza el paquete: pip install ctfr-reloaded") from exc
 
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)

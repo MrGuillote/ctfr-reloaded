@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.2.2
+
+- **Instalacion todo-en-uno**: `pip install ctfr-reloaded` incluye CLI, dashboard web (FastAPI/uvicorn) y export PDF
+- Extras `[api]` y `[pdf]` quedan vacios por compatibilidad; solo `[dev]` es opcional (tests)
+- README simplificado para una experiencia de usuario directa
+
 ## 4.2.1
 
 - Capturas reales en README (terminal, dashboard y consola de actividad)
