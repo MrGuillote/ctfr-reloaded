@@ -4,9 +4,20 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from ctfr_reloaded.cache import ResultCache
 from ctfr_reloaded.dns import resolve_subdomains
 from ctfr_reloaded.domains import split_apex_subdomains
+from ctfr_reloaded.enrichment import enrich_tls_cdn
+from ctfr_reloaded.filters import apply_result_filters
+from ctfr_reloaded.history import ScanHistory
 from ctfr_reloaded.http_check import check_alive_batch
+from ctfr_reloaded.integrations import (
+    run_amass_merge,
+    run_assetfinder_merge,
+    run_subfinder_merge,
+)
+from ctfr_reloaded.progress import ProgressTracker
+from ctfr_reloaded.scoring import apply_exclude_patterns, enrich_scores
 from ctfr_reloaded.session import create_session
 from ctfr_reloaded.sources import get_sources
+from ctfr_reloaded.takeover import enrich_takeover
 
 
 def load_baseline(path):
@@ -33,7 +44,10 @@ def apply_scope(subdomains, target, apex_only=False, subdomains_only=False):
 def enrich_subdomains(names, resolve=False, alive=False, threads=10, timeout=5, session=None):
     enriched = [{"name": name} for name in names]
     if resolve:
-        resolved = {item["name"]: item for item in resolve_subdomains(names, threads=threads, timeout=timeout)}
+        resolved = {
+            item["name"]: item
+            for item in resolve_subdomains(names, threads=threads, timeout=timeout)
+        }
         for item in enriched:
             data = resolved.get(item["name"], {})
             item["resolved"] = data.get("resolved", False)
@@ -51,9 +65,25 @@ def enrich_subdomains(names, resolve=False, alive=False, threads=10, timeout=5, 
     return enriched
 
 
-def scan_domain(domain, options, console, cache, session):
+def _merge_external(domain, options, console, all_names):
+    mergers = [
+        (options.merge_subfinder, run_subfinder_merge, "subfinder"),
+        (options.merge_amass, run_amass_merge, "amass"),
+        (options.merge_assetfinder, run_assetfinder_merge, "assetfinder"),
+    ]
+    for enabled, func, label in mergers:
+        if not enabled:
+            continue
+        try:
+            names = func(domain, console)
+            all_names.update(names)
+            console.debug("{l}: {n} subdominios para {d}".format(l=label, n=len(names), d=domain))
+        except RuntimeError as exc:
+            console.warn(str(exc))
+
+
+def scan_domain(domain, options, console, cache, session, history=None):
     all_names = set()
-    source_names = {}
 
     for source_name, (source, extractor) in get_sources(options.source):
         cached = cache.get(domain, source_name)
@@ -66,11 +96,12 @@ def scan_domain(domain, options, console, cache, session):
             cache.set(domain, source_name, names)
             if options.rate_limit > 0:
                 time.sleep(options.rate_limit)
-        source_names[source_name] = names
         all_names.update(names)
         console.debug(
             "{s}: {n} subdominios para {d}".format(s=source_name, n=len(names), d=domain)
         )
+
+    _merge_external(domain, options, console, all_names)
 
     subdomains = apply_scope(
         sorted(all_names),
@@ -83,7 +114,7 @@ def scan_domain(domain, options, console, cache, session):
         subdomains = filter_new_only(subdomains, options.baseline_set)
 
     if options.resolve or options.alive:
-        return enrich_subdomains(
+        enriched = enrich_subdomains(
             subdomains,
             resolve=options.resolve,
             alive=options.alive,
@@ -91,33 +122,71 @@ def scan_domain(domain, options, console, cache, session):
             timeout=options.timeout,
             session=session,
         )
+    else:
+        enriched = [{"name": name} for name in subdomains]
 
-    return [{"name": name} for name in subdomains]
+    if options.takeover:
+        enriched = enrich_takeover(enriched, threads=options.threads, timeout=options.timeout)
+
+    if options.tls or options.cdn:
+        enriched = enrich_tls_cdn(
+            enriched,
+            session=session,
+            threads=options.threads,
+            timeout=options.timeout,
+        )
+
+    enriched = apply_exclude_patterns(enriched, options.exclude_patterns)
+
+    if options.takeover_only:
+        enriched = [item for item in enriched if item.get("vulnerable")]
+
+    enriched = apply_result_filters(
+        enriched,
+        resolved_only=options.resolved_only,
+        alive_only=options.alive_only,
+    )
+
+    if options.score:
+        enriched = enrich_scores(enriched)
+
+    if history and options.history_enabled:
+        history.save_scan(domain, enriched)
+
+    return enriched
 
 
-def scan_domains(domains, options, console):
-    cache = ResultCache(enabled=options.cache, cache_dir=options.cache_dir)
+def scan_domains(domains, options, console, history=None):
+    cache = ResultCache(
+        enabled=options.cache,
+        cache_dir=options.cache_dir,
+        ttl_seconds=options.cache_ttl,
+    )
     session = create_session(
         retries=options.retries,
         proxy=options.proxy,
         version=options.version,
     )
     results = {}
+    progress = ProgressTracker(len(domains), console, enabled=options.show_progress)
+    progress.start("Escaneando dominios")
 
     if len(domains) == 1 or options.threads <= 1:
         for domain in domains:
             console.info("Escaneando {d}...".format(d=domain))
-            results[domain] = scan_domain(domain, options, console, cache, session)
+            results[domain] = scan_domain(domain, options, console, cache, session, history)
+            progress.step(domain)
         return results
 
     with ThreadPoolExecutor(max_workers=options.threads) as executor:
         futures = {
-            executor.submit(scan_domain, domain, options, console, cache, session): domain
+            executor.submit(scan_domain, domain, options, console, cache, session, history): domain
             for domain in domains
         }
         for future in as_completed(futures):
             domain = futures[future]
             results[domain] = future.result()
+            progress.step(domain)
             console.success("Completado {d}".format(d=domain))
 
     return {domain: results[domain] for domain in domains}

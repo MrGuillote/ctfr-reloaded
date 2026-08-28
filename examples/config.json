@@ -1,0 +1,18 @@
+{
+  "defaults": {
+    "source": "all",
+    "timeout": 30,
+    "retries": 3,
+    "threads": 5,
+    "cache": true,
+    "cache_ttl": 3600,
+    "rate_limit": 1.0,
+    "resolve": false,
+    "alive": false,
+    "no_wildcards": false,
+    "score": true
+  },
+  "exclude_patterns": ["staging", "dev", "test"],
+  "history_enabled": true,
+  "history_db": ""
+}

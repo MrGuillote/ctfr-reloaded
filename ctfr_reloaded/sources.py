@@ -1,3 +1,4 @@
+import re
 import time
 
 from ctfr_reloaded.domains import (
@@ -5,6 +6,9 @@ from ctfr_reloaded.domains import (
     is_valid_subdomain,
     sanitize_domain_for_url,
 )
+
+# Fuentes 100% gratuitas, sin API key ni registro.
+FREE_SOURCES = ("crtsh", "certspotter", "hackertarget", "wayback", "anubis")
 
 
 class CertificateSource:
@@ -21,40 +25,7 @@ class CrtShSource(CertificateSource):
     def fetch(self, session, domain, timeout, retries, console):
         safe_domain = sanitize_domain_for_url(domain)
         url = self.url_template.format(domain=safe_domain)
-        last_error = None
-
-        for attempt in range(1, retries + 1):
-            console.debug(
-                "Consultando crt.sh ({a}/{r}) para {d}".format(a=attempt, r=retries, d=domain)
-            )
-            try:
-                response = session.get(url, timeout=timeout)
-            except Exception as exc:
-                last_error = exc
-                if attempt < retries:
-                    time.sleep(attempt)
-                    continue
-                raise RuntimeError("Error de conexion crt.sh para {d}: {e}".format(d=domain, e=exc))
-
-            if response.status_code == 200:
-                try:
-                    return response.json()
-                except ValueError as exc:
-                    last_error = exc
-                    if attempt < retries:
-                        time.sleep(attempt)
-                        continue
-                    raise RuntimeError("JSON invalido de crt.sh para {d}".format(d=domain))
-
-            if response.status_code in (429, 500, 502, 503, 504) and attempt < retries:
-                time.sleep(attempt * 2)
-                continue
-
-            raise RuntimeError(
-                "crt.sh respondio {c} para {d}".format(c=response.status_code, d=domain)
-            )
-
-        raise RuntimeError("Error de conexion crt.sh para {d}: {e}".format(d=domain, e=last_error))
+        return _fetch_json(session, url, domain, timeout, retries, console, self.name)
 
 
 class CertspotterSource(CertificateSource):
@@ -67,46 +38,90 @@ class CertspotterSource(CertificateSource):
     def fetch(self, session, domain, timeout, retries, console):
         safe_domain = sanitize_domain_for_url(domain)
         url = self.url_template.format(domain=safe_domain)
-        last_error = None
+        return _fetch_json(session, url, domain, timeout, retries, console, self.name)
 
-        for attempt in range(1, retries + 1):
-            console.debug(
-                "Consultando certspotter ({a}/{r}) para {d}".format(
-                    a=attempt, r=retries, d=domain
-                )
+
+class HackerTargetSource(CertificateSource):
+    name = "hackertarget"
+    url_template = "https://api.hackertarget.com/hostsearch/?q={domain}"
+
+    def fetch(self, session, domain, timeout, retries, console):
+        safe_domain = sanitize_domain_for_url(domain)
+        url = self.url_template.format(domain=safe_domain)
+        return _fetch_text(session, url, domain, timeout, retries, console, self.name)
+
+
+class WaybackSource(CertificateSource):
+    name = "wayback"
+    url_template = (
+        "https://web.archive.org/cdx/search/cdx"
+        "?url=*.{domain}/*&output=json&fl=original&collapse=urlkey&limit=5000"
+    )
+
+    def fetch(self, session, domain, timeout, retries, console):
+        safe_domain = sanitize_domain_for_url(domain)
+        url = self.url_template.format(domain=safe_domain)
+        return _fetch_json(session, url, domain, timeout, retries, console, self.name)
+
+
+class AnubisSource(CertificateSource):
+    name = "anubis"
+    url_template = "https://jldc.me/anubis/subdomains/{domain}.txt"
+
+    def fetch(self, session, domain, timeout, retries, console):
+        safe_domain = sanitize_domain_for_url(domain)
+        url = self.url_template.format(domain=safe_domain)
+        return _fetch_text(session, url, domain, timeout, retries, console, self.name)
+
+
+def _fetch_json(session, url, domain, timeout, retries, console, source_name):
+    response = _request(session, url, domain, timeout, retries, console, source_name)
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise RuntimeError(
+            "JSON invalido de {s} para {d}".format(s=source_name, d=domain)
+        ) from exc
+
+
+def _fetch_text(session, url, domain, timeout, retries, console, source_name):
+    response = _request(session, url, domain, timeout, retries, console, source_name)
+    return response.text
+
+
+def _request(session, url, domain, timeout, retries, console, source_name):
+    last_error = None
+    for attempt in range(1, retries + 1):
+        console.debug(
+            "Consultando {s} ({a}/{r}) para {d}".format(
+                s=source_name, a=attempt, r=retries, d=domain
             )
-            try:
-                response = session.get(url, timeout=timeout)
-            except Exception as exc:
-                last_error = exc
-                if attempt < retries:
-                    time.sleep(attempt)
-                    continue
-                raise RuntimeError(
-                    "Error de conexion certspotter para {d}: {e}".format(d=domain, e=exc)
-                )
-
-            if response.status_code == 200:
-                try:
-                    return response.json()
-                except ValueError as exc:
-                    last_error = exc
-                    if attempt < retries:
-                        time.sleep(attempt)
-                        continue
-                    raise RuntimeError("JSON invalido de certspotter para {d}".format(d=domain))
-
-            if response.status_code in (429, 500, 502, 503, 504) and attempt < retries:
-                time.sleep(attempt * 3)
+        )
+        try:
+            response = session.get(url, timeout=timeout)
+        except Exception as exc:
+            last_error = exc
+            if attempt < retries:
+                time.sleep(attempt)
                 continue
-
             raise RuntimeError(
-                "certspotter respondio {c} para {d}".format(c=response.status_code, d=domain)
+                "Error de conexion {s} para {d}: {e}".format(s=source_name, d=domain, e=exc)
             )
+
+        if response.status_code == 200:
+            return response
+
+        if response.status_code in (429, 500, 502, 503, 504) and attempt < retries:
+            time.sleep(attempt * 2)
+            continue
 
         raise RuntimeError(
-            "Error de conexion certspotter para {d}: {e}".format(d=domain, e=last_error)
+            "{s} respondio {c} para {d}".format(s=source_name, c=response.status_code, d=domain)
         )
+
+    raise RuntimeError(
+        "Error de conexion {s} para {d}: {e}".format(s=source_name, d=domain, e=last_error)
+    )
 
 
 def extract_from_crtsh(entries, target, exclude_wildcards=False):
@@ -127,15 +142,71 @@ def extract_from_certspotter(entries, target, exclude_wildcards=False):
     return sorted(subdomains)
 
 
+def extract_from_hackertarget(text, target, exclude_wildcards=False):
+    subdomains = set()
+    for line in str(text).splitlines():
+        host = line.split(",")[0].strip().lower()
+        if not host:
+            continue
+        if exclude_wildcards and host.startswith("*."):
+            continue
+        if is_valid_subdomain(host, target):
+            subdomains.add(host)
+    return sorted(subdomains)
+
+
+def extract_from_wayback(entries, target, exclude_wildcards=False):
+    subdomains = set()
+    if not entries:
+        return []
+    for row in entries[1:]:
+        if not row:
+            continue
+        url = None
+        for cell in row:
+            if "://" in str(cell):
+                url = cell
+                break
+        if not url:
+            continue
+        match = re.search(r"https?://([^/]+)", url, re.IGNORECASE)
+        if not match:
+            continue
+        host = match.group(1).split(":")[0].strip().lower()
+        if exclude_wildcards and host.startswith("*."):
+            continue
+        if is_valid_subdomain(host, target):
+            subdomains.add(host)
+    return sorted(subdomains)
+
+
+def extract_from_anubis(text, target, exclude_wildcards=False):
+    subdomains = set()
+    for line in str(text).splitlines():
+        host = line.strip().lower()
+        if not host:
+            continue
+        if exclude_wildcards and host.startswith("*."):
+            continue
+        if is_valid_subdomain(host, target):
+            subdomains.add(host)
+    return sorted(subdomains)
+
+
 SOURCE_REGISTRY = {
     "crtsh": (CrtShSource(), extract_from_crtsh),
     "certspotter": (CertspotterSource(), extract_from_certspotter),
+    "hackertarget": (HackerTargetSource(), extract_from_hackertarget),
+    "wayback": (WaybackSource(), extract_from_wayback),
+    "anubis": (AnubisSource(), extract_from_anubis),
 }
 
 
 def get_sources(selected):
     if selected == "all":
         return list(SOURCE_REGISTRY.items())
+
     if selected not in SOURCE_REGISTRY:
         raise ValueError("Fuente desconocida: {s}".format(s=selected))
+
     return [(selected, SOURCE_REGISTRY[selected])]
