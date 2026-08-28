@@ -104,6 +104,8 @@ class RapidDnsSource(CertificateSource):
 
 def _fetch_json(session, url, domain, timeout, retries, console, source_name):
     response = _request(session, url, domain, timeout, retries, console, source_name)
+    if response.status_code == 404:
+        return []
     try:
         return response.json()
     except ValueError as exc:
@@ -114,6 +116,8 @@ def _fetch_json(session, url, domain, timeout, retries, console, source_name):
 
 def _fetch_text(session, url, domain, timeout, retries, console, source_name):
     response = _request(session, url, domain, timeout, retries, console, source_name)
+    if response.status_code == 404:
+        return ""
     return response.text
 
 
@@ -137,6 +141,9 @@ def _request(session, url, domain, timeout, retries, console, source_name):
             )
 
         if response.status_code == 200:
+            return response
+
+        if response.status_code == 404:
             return response
 
         if response.status_code in (429, 500, 502, 503, 504) and attempt < retries:

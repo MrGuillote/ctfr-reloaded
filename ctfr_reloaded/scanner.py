@@ -91,9 +91,15 @@ def scan_domain(domain, options, console, cache, session, history=None):
             console.debug("Cache hit para {d} ({s})".format(d=domain, s=source_name))
             names = cached
         else:
-            entries = source.fetch(session, domain, options.timeout, options.retries, console)
-            names = extractor(entries, domain, exclude_wildcards=options.no_wildcards)
-            cache.set(domain, source_name, names)
+            try:
+                entries = source.fetch(session, domain, options.timeout, options.retries, console)
+                names = extractor(entries, domain, exclude_wildcards=options.no_wildcards)
+                cache.set(domain, source_name, names)
+            except RuntimeError as exc:
+                if options.source == "all":
+                    console.warn("{s}: {e}".format(s=source_name, e=exc))
+                    continue
+                raise
             if options.rate_limit > 0:
                 time.sleep(options.rate_limit)
         all_names.update(names)
