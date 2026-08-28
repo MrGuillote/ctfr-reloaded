@@ -10,6 +10,7 @@ cd ctfr-reloaded
 python -m venv .venv
 .venv\Scripts\activate  # Windows
 pip install -e ".[dev]"
+git config core.hooksPath .githooks
 ```
 
 ## Tests
