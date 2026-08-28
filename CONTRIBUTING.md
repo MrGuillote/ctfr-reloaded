@@ -34,3 +34,15 @@ Solo prueba dominios sobre los que tengas autorizacion explicita.
 2. Agrega tests si aplica
 3. Actualiza `CHANGELOG.md`
 4. Describe el cambio y como probarlo
+
+## Publicar en PyPI (mantenedores)
+
+1. Actualizar version en `pyproject.toml` y `ctfr_reloaded/__init__.py`
+2. Commit, tag `vX.Y.Z` y push a GitHub
+3. Ejecutar workflow `publish-pypi.yml` (requiere secret `PYPI_API_TOKEN` en el repo)
+
+```bash
+git tag vX.Y.Z
+git push origin main --tags
+gh workflow run publish-pypi.yml --repo MrGuillote/ctfr-reloaded
+```

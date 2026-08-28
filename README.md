@@ -15,11 +15,11 @@ Desarrollado por **[MrGuillote](https://github.com/MrGuillote)**.
 | 8 fuentes CT gratuitas | Stats, scores y export | Logs SSE durante el scan |
 | DNS, HTTP, takeover, TLS, CDN | Tabla filtrable y ordenable | Mismo motor que la terminal |
 
+> **Uso etico:** escanea solo dominios sobre los que tengas autorizacion.
+
 ---
 
 ## Inicio rapido
-
-**Un solo comando.** Terminal, dashboard web y export PDF vienen incluidos — no hace falta instalar extras.
 
 ```bash
 pip install ctfr-reloaded
@@ -28,9 +28,10 @@ pip install ctfr-reloaded
 | Que queres hacer | Comando |
 |------------------|---------|
 | Scan en terminal | `ctfr-reloaded -d ejemplo.com` |
+| Scan completo | `ctfr-reloaded -d ejemplo.com --resolve --alive --takeover --tls --cdn --tqdm` |
 | Dashboard web | `python -m ctfr_reloaded serve` → http://127.0.0.1:9473/ |
-| Reporte HTML | `ctfr-reloaded -d ejemplo.com -o reporte.html` |
-| Reporte PDF | `ctfr-reloaded -d ejemplo.com -o reporte.pdf` |
+| Reporte HTML / PDF | `ctfr-reloaded -d ejemplo.com -o reporte.html` |
+| Burp Suite | `ctfr-reloaded -d ejemplo.com --burp` |
 
 > Si clonaste el repo, tambien podes usar `python ctfr.py` en lugar de `ctfr-reloaded`.
 
@@ -79,28 +80,13 @@ python -m ctfr_reloaded serve
 
 ## Instalacion
 
-### pip (PyPI) — recomendado
+### pip (PyPI)
 
 ```bash
 pip install ctfr-reloaded
 ```
 
-Incluye todo lo necesario para usar la herramienta:
-
-| Componente | Dependencias | Incluido |
-|------------|--------------|----------|
-| Terminal + TUI | requests, colorama, dnspython, tqdm | Si |
-| Dashboard web | FastAPI, uvicorn, httpx | Si |
-| Export PDF | fpdf2 | Si |
-| Tests (`pytest`) | pytest, pytest-mock, responses | No — solo con `[dev]` |
-
-Los extras `[api]` y `[pdf]` de versiones anteriores **ya no hacen falta** (se mantienen vacios por compatibilidad).
-
-Para contribuir al proyecto:
-
-```bash
-pip install "ctfr-reloaded[dev]"
-```
+Un solo paquete con todo incluido: terminal, dashboard web, export HTML/PDF/JSON/CSV y modo Burp. No hace falta instalar extras.
 
 ### Desde GitHub
 
@@ -108,9 +94,6 @@ pip install "ctfr-reloaded[dev]"
 git clone https://github.com/MrGuillote/ctfr-reloaded.git
 cd ctfr-reloaded
 pip install -e ".[dev]"
-
-# Scan full de ejemplo
-python ctfr.py -d ejemplo.com --source all --resolve --alive --takeover --tls --cdn --tqdm -v -o reporte.html --format html
 ```
 
 ### Docker (GHCR)
@@ -138,14 +121,15 @@ docker run --rm ghcr.io/mrguillote/ctfr-reloaded:latest -d ejemplo.com
 
 ---
 
-## Uso rapido
+## Uso
+
+### Scan basico
 
 ```bash
-# Scan basico (todas las fuentes por defecto)
 ctfr-reloaded -d ejemplo.com
 ```
 
-### Scan FULL (traer todo)
+### Scan FULL
 
 Todas las fuentes + DNS + HTTP + takeover + TLS + CDN + score + reporte HTML:
 
@@ -164,27 +148,17 @@ Equivalente en una linea:
 ctfr-reloaded -d ejemplo.com --source all --resolve --alive --takeover --tls --cdn --tqdm -v --history -o reporte.html --format html
 ```
 
-Salida JSON en lugar de HTML:
+Salida JSON:
 
 ```bash
 ctfr-reloaded -d ejemplo.com --source all --resolve --alive --takeover --tls --cdn --tqdm -j -o resultados.json
 ```
 
-Docker (mismo scan full):
-
-```bash
-docker run --rm ghcr.io/mrguillote/ctfr-reloaded:latest \
-  -d ejemplo.com --source all --resolve --alive --takeover --tls --cdn --tqdm -v -j
-```
-
 ### Mas ejemplos
 
 ```bash
-# Recon pro con barra de progreso
+# Recon con barra de progreso
 ctfr-reloaded -d ejemplo.com --resolve --alive --takeover --tls --cdn --tqdm
-
-# Reporte PDF
-ctfr-reloaded -d ejemplo.com -o reporte.pdf --format pdf
 
 # TUI interactivo
 ctfr-reloaded -d ejemplo.com --tui
@@ -201,40 +175,22 @@ ctfr-reloaded -d ejemplo.com --pipe | httpx -silent
 
 ## Burp Suite
 
-Modo mas sencillo: un solo flag prepara todo para Burp.
-
 ```bash
-# 1. Abrir Burp y dejar el proxy en 127.0.0.1:8080 (default)
-# 2. Ejecutar CTFR en modo Burp
+# 1. Abrir Burp (proxy en 127.0.0.1:8080)
+# 2. Ejecutar
 ctfr-reloaded -d ejemplo.com --burp
 ```
 
-`--burp` hace automaticamente:
+`--burp` configura el proxy, activa `--resolve` + `--alive` y exporta `ejemplo.com-burp.txt` con URLs listas para importar.
 
-| Accion | Detalle |
-|--------|---------|
-| Proxy | Envia checks HTTP via `127.0.0.1:8080` (trafico visible en Burp) |
-| DNS + HTTP | Activa `--resolve` y `--alive` |
-| Export | Genera `ejemplo.com-burp.txt` con URLs (`https://...`) |
-
-**Importar en Burp:** Target → Scope → Add → Paste URL(s) → pegar el contenido del archivo.
-
-Solo URLs por consola (sin archivo):
+**En Burp:** Target → Scope → Add → Paste URL(s).
 
 ```bash
+# Solo URLs por consola
 ctfr-reloaded -d ejemplo.com --burp --pipe
-```
 
-Pasando httpx por Burp para poblar el site map:
-
-```bash
+# Poblar site map con httpx via Burp
 ctfr-reloaded -d ejemplo.com --burp --with httpx
-```
-
-Proxy manual (sin `--burp`):
-
-```bash
-ctfr-reloaded -d ejemplo.com --alive --proxy http://127.0.0.1:8080 -o urls.txt --format burp
 ```
 
 ---
@@ -258,20 +214,18 @@ ctfr-reloaded -d ejemplo.com --alive --proxy http://127.0.0.1:8080 -o urls.txt -
 
 ## Score (priorizacion)
 
-Cada subdominio recibe un **score de 0 a 100** para ordenar resultados: arriba van los que conviene revisar primero en un pentest u OSINT.
-
-**No es un nivel de riesgo real** ni confirma vulnerabilidades; es una heuristica de prioridad.
+Cada subdominio recibe un **score de 0 a 100** para ordenar resultados. **No es un nivel de riesgo real** — es una heuristica de prioridad para pentest u OSINT.
 
 | Factor | Puntos |
 |--------|--------|
 | Base | +10 |
-| Palabra clave interesante en el nombre (`api`, `dev`, `mail`, `admin`, `test`, `git`, etc.) | +15 por match |
+| Keyword interesante (`api`, `dev`, `mail`, `admin`, `git`, etc.) | +15 por match |
 | Resuelve DNS (`--resolve`) | +10 |
 | Responde HTTP (`--alive`) | +20 |
 | Posible subdomain takeover (`--takeover`) | +50 |
 | Deteccion CDN (`--cdn`) | +5 |
 | Info TLS (`--tls`) | +5 |
-| Nombre corto (apex o pocas partes, ej. `ejemplo.com`) | +5 |
+| Nombre corto (apex) | +5 |
 
 Ejemplo sin flags extra:
 
@@ -282,55 +236,37 @@ ejemplo.com         → 15  (10 + nombre corto)
 www.ejemplo.com     → 10  (solo base)
 ```
 
-Con `--resolve --alive --takeover` los scores suben segun lo que se detecte en cada host. Para desactivar el calculo: `--no-score`.
+Para desactivar el calculo: `--no-score`.
 
 ---
 
-## Servidor web local (dashboard)
-
-El **modo web** levanta un servidor HTTP en tu maquina (por defecto `127.0.0.1:9473`). Incluye el dashboard visual y endpoints REST para integrar scans desde otros scripts.
-
-**No usa servicios externos ni pide API keys** — todo corre localmente en tu PC.
+## Dashboard web y API local
 
 ```bash
 python -m ctfr_reloaded serve
-# Abrir en el navegador: http://127.0.0.1:9473/
+# → http://127.0.0.1:9473/
 ```
 
-Puerto configurable: `python -m ctfr_reloaded serve --port 8080`
+Servidor **local** en tu PC — no requiere API keys ni servicios externos.
 
 | URL | Descripcion |
 |-----|-------------|
-| http://127.0.0.1:9473/ | **Dashboard web** — formulario, estadisticas, tabla interactiva |
-| http://127.0.0.1:9473/docs | Documentacion interactiva (Swagger) de los endpoints REST |
+| http://127.0.0.1:9473/ | Dashboard — formulario, stats, tabla interactiva |
+| http://127.0.0.1:9473/docs | Swagger (endpoints REST) |
 | http://127.0.0.1:9473/scan?domain=ejemplo.com | Scan JSON basico |
-| http://127.0.0.1:9473/scan?domain=ejemplo.com&source=all&resolve=true&alive=true&takeover=true&tls=true&cdn=true&score=true | Scan completo (JSON) |
 | http://127.0.0.1:9473/health | Estado del servidor |
 
-El dashboard incluye tarjetas de estadisticas, distribucion de scores, keywords detectadas, filtro y orden por columnas, export a JSON/HTML, y una **consola lateral en vivo** durante el scan. Ver capturas en la seccion [Demo](#demo). El reporte `-o reporte.html` usa el mismo diseno.
+Puerto configurable: `python -m ctfr_reloaded serve --port 8080`
+
+El reporte `-o reporte.html` usa el mismo diseno visual. Ver capturas en [Demo](#demo).
 
 ---
 
-## Publicar en PyPI (mantenedores)
+## Contribuir
 
-1. Crear tag `vX.Y.Z` y pushearlo a GitHub
-2. Configurar secret `PYPI_API_TOKEN` en el repo
-3. Ejecutar workflow `publish-pypi.yml` (manual o tras release publicado)
+Ver [CONTRIBUTING.md](CONTRIBUTING.md) para setup, tests y pull requests.
 
----
-
-## Desarrollo
-
-```bash
-pip install -e ".[dev]"
-pytest
-```
-
----
-
-## Reportar bugs
-
-Usa los [issue templates](.github/ISSUE_TEMPLATE/) del repo.
+Encontraste un bug? Abri un [issue](https://github.com/MrGuillote/ctfr-reloaded/issues).
 
 ---
 
