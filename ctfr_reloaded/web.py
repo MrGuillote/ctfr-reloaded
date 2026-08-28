@@ -2,7 +2,7 @@ import html
 import json
 
 from ctfr_reloaded import __version__
-from ctfr_reloaded.reports import SCORE_BUCKETS, _report_styles, _score_help_block
+from ctfr_reloaded.reports import SCORE_BUCKETS, report_styles, score_help_block
 from ctfr_reloaded.scoring import HIGH_VALUE_KEYWORDS
 
 
@@ -725,9 +725,9 @@ def render_dashboard(version=None, sources=None):
         version=html.escape(version),
         source_count=len(sources),
         source_options="".join(source_options),
-        base_styles=_report_styles(),
+        base_styles=report_styles(),
         extra_styles=extra_styles,
-        score_help=_score_help_block(),
+        score_help=score_help_block(),
         keywords_json=json.dumps(list(HIGH_VALUE_KEYWORDS)),
         score_buckets_json=json.dumps(
             [{"label": label, "min": low, "max": high} for label, low, high in SCORE_BUCKETS]

@@ -1,4 +1,0 @@
-pytest>=7.0
-pytest-mock>=3.10
-responses>=0.25.0
-fpdf2>=2.7.0

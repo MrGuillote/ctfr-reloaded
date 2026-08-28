@@ -1,4 +1,4 @@
-# Ejemplos CTFR-Reloaded v4.0 — 100% Free
+# Ejemplos CTFR-Reloaded
 
 ## Scan completo gratuito
 
