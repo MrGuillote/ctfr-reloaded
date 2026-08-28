@@ -57,6 +57,6 @@ class Console:
          \____| |_| |_|   |_| \_\
 
      CTFR-Reloaded v{v}
-     by MrGuillote
+     100% Free — by MrGuillote
     """.format(v=version)
         )

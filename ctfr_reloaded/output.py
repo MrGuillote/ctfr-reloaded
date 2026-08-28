@@ -3,6 +3,7 @@ import json
 import sys
 
 from ctfr_reloaded import __version__
+from ctfr_reloaded.reports import save_html_output
 
 
 def names_from_results(results):
@@ -53,9 +54,13 @@ def save_json_output(results, output_file):
 
 
 def save_csv_output(results, output_file):
-    fieldnames = ["domain", "subdomain", "resolved", "addresses", "alive", "url", "status_code"]
+    fieldnames = [
+        "domain", "subdomain", "score", "resolved", "addresses",
+        "alive", "url", "status_code", "cname", "service", "vulnerable",
+        "cdn", "tls_issuer", "tls_expires",
+    ]
     with open(output_file, "w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         for domain, items in results.items():
             for item in items:
@@ -63,20 +68,35 @@ def save_csv_output(results, output_file):
                     {
                         "domain": domain,
                         "subdomain": item["name"],
+                        "score": item.get("score", ""),
                         "resolved": item.get("resolved", ""),
                         "addresses": ",".join(item.get("addresses", []) or []),
                         "alive": item.get("alive", ""),
                         "url": item.get("url", "") or "",
                         "status_code": item.get("status_code", "") or "",
+                        "cname": item.get("cname", "") or "",
+                        "service": item.get("service", "") or "",
+                        "vulnerable": item.get("vulnerable", ""),
+                        "cdn": item.get("cdn", "") or "",
+                        "tls_issuer": item.get("tls_issuer", "") or "",
+                        "tls_expires": item.get("tls_expires", "") or "",
                     }
                 )
 
 
-def detect_output_format(output_path, json_flag):
+def detect_output_format(output_path, json_flag, explicit_format=None):
+    if explicit_format:
+        return explicit_format
     if json_flag:
         return "json"
-    if output_path and output_path.lower().endswith(".csv"):
-        return "csv"
+    if output_path:
+        lower = output_path.lower()
+        if lower.endswith(".csv"):
+            return "csv"
+        if lower.endswith(".html"):
+            return "html"
+        if lower.endswith(".json"):
+            return "json"
     return "plain"
 
 
@@ -85,16 +105,24 @@ def save_output(results, output_path, output_format):
         save_json_output(results, output_path)
     elif output_format == "csv":
         save_csv_output(results, output_path)
+    elif output_format == "html":
+        save_html_output(results, output_path)
     else:
         save_plain_output(results, output_path)
 
 
 def format_subdomain_extra(item):
     parts = []
+    if item.get("score") is not None:
+        parts.append("score:{s}".format(s=item["score"]))
     if "resolved" in item:
         parts.append("DNS" if item["resolved"] else "NO-DNS")
     if "alive" in item:
         parts.append("HTTP" if item["alive"] else "NO-HTTP")
+    if item.get("vulnerable"):
+        parts.append("TAKEOVER:{s}".format(s=item.get("service", "?")))
+    if item.get("cdn"):
+        parts.append("CDN:{c}".format(c=item["cdn"]))
     if item.get("status_code"):
         parts.append(str(item["status_code"]))
     return "({p})".format(p=", ".join(parts)) if parts else ""
@@ -121,10 +149,14 @@ def print_json_results(results):
 
 
 def emit_results(results, args, console):
-    if getattr(args, "format", None):
-        output_format = args.format
-    else:
-        output_format = detect_output_format(args.output, args.json)
+    output_format = detect_output_format(args.output, args.json, getattr(args, "format", None))
+
+    if args.pipe:
+        for name in names_from_results(results):
+            print(name)
+        if args.output:
+            save_output(results, args.output, output_format)
+        return
 
     if args.json:
         print_json_results(results)
@@ -133,7 +165,3 @@ def emit_results(results, args, console):
 
     if args.output:
         save_output(results, args.output, output_format)
-
-    if args.pipe:
-        for name in names_from_results(results):
-            print(name, file=sys.stdout)

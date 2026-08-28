@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ctfr-reloaded"
-version = "3.0.0"
+version = "4.0.0"
 description = "Subdomain discovery via Certificate Transparency logs"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
 requires-python = ">=3.8"
-authors = [{ name = "MrGuillote", url = "https://github.com/MrGuillote" }]
+authors = [{ name = "MrGuillote" }]
 keywords = ["security", "subdomain", "certificate-transparency", "recon", "osint"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -22,6 +22,7 @@ classifiers = [
 dependencies = [
     "requests>=2.28.0",
     "colorama>=0.4.6",
+    "dnspython>=2.4.0",
 ]
 
 [project.optional-dependencies]

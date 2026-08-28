@@ -1,32 +1,27 @@
 # Changelog
 
+## 4.0.0 — 100% Free Edition
+
+- **Filosofia 100% gratuita**: sin API keys, sin registro, sin Censys
+- **5 fuentes pasivas gratuitas**: crt.sh, certspotter, HackerTarget, Wayback, Anubis
+- **Subdomain takeover detection** (`--takeover`, `--takeover-only`)
+- **Scoring automatico** de subdominios por interes
+- **Historial SQLite** (`--history`) para comparar scans
+- **Modo watch** (`--watch --interval`) para monitoreo continuo
+- **TLS info** (`--tls`) y **deteccion CDN** (`--cdn`)
+- **Config JSON** (`--init-config`, `~/.config/ctfr-reloaded/config.json`)
+- Integraciones: `--merge-amass`, `--merge-assetfinder`
+- Filtros `--exclude` para patrones
+- Reportes HTML/CSV enriquecidos con score, takeover, CDN, TLS
+
+## 3.1.0
+
+- Export HTML, reintentos, JSON, lista de dominios, integraciones httpx/nuclei
+
 ## 3.0.0
 
-- Refactor a paquete `ctfr_reloaded` instalable con pip
-- Multi-fuente CT: `crtsh`, `certspotter`, `all`
-- `--resolve` para verificacion DNS
-- `--alive` para verificacion HTTP/HTTPS
-- `--new-only` para comparar con scan anterior
-- `--apex-only` y `--subdomains-only`
-- Export CSV automatico (`.csv`) o `--format csv`
-- Cache local (`--cache`)
-- Rate limiting (`--rate-limit`)
-- Paralelismo con `--threads`
-- Modo verbose (`-v`) y colores en terminal
-- Proxy (`--proxy`)
-- Limite de dominios en listas (`--max-domains`)
-- Modo pipe (`--pipe`) para httpx/nuclei
-- API HTTP opcional (`python -m ctfr_reloaded serve`)
-- Tests con pytest y CI en GitHub Actions
-- CHANGELOG, CONTRIBUTING y ejemplos
-
-## 2.1.0
-
-- Reintentos automaticos y timeout configurable
-- Salida JSON (`-j`)
-- Lista de dominios (`-l`)
-- Dockerfile
+- Paquete modular, multi-fuente, resolve, alive, cache, API, tests, CI
 
 ## 2.0.0
 
-- Version inicial con fixes de parseo, filtros y modo quiet
+- Version inicial mejorada
