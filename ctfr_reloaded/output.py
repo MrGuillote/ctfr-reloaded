@@ -40,6 +40,27 @@ def build_json_payload(results, version=None):
     }
 
 
+def urls_from_results(results, alive_only=False):
+    urls = []
+    seen = set()
+    for items in results.values():
+        for item in items:
+            if alive_only and not item.get("alive"):
+                continue
+            url = item.get("url") or "https://{name}".format(name=item["name"])
+            if url not in seen:
+                seen.add(url)
+                urls.append(url)
+    return urls
+
+
+def save_burp_output(results, output_file, alive_only=False):
+    urls = urls_from_results(results, alive_only=alive_only)
+    with open(output_file, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(urls) + ("\n" if urls else ""))
+    return len(urls)
+
+
 def save_plain_output(results, output_file):
     lines = names_from_results(results)
     with open(output_file, "w", encoding="utf-8") as handle:
@@ -99,10 +120,12 @@ def detect_output_format(output_path, json_flag, explicit_format=None):
             return "pdf"
         if lower.endswith(".json"):
             return "json"
+        if lower.endswith("-burp.txt") or lower.endswith(".burp.txt"):
+            return "burp"
     return "plain"
 
 
-def save_output(results, output_path, output_format):
+def save_output(results, output_path, output_format, alive_only=False):
     if output_format == "json":
         save_json_output(results, output_path)
     elif output_format == "csv":
@@ -111,8 +134,11 @@ def save_output(results, output_path, output_format):
         save_html_output(results, output_path)
     elif output_format == "pdf":
         save_pdf_output(results, output_path)
+    elif output_format == "burp":
+        return save_burp_output(results, output_path, alive_only=alive_only)
     else:
         save_plain_output(results, output_path)
+    return None
 
 
 def format_subdomain_extra(item):
@@ -154,12 +180,20 @@ def print_json_results(results):
 
 def emit_results(results, args, console):
     output_format = detect_output_format(args.output, args.json, getattr(args, "format", None))
+    if getattr(args, "burp", False) and not getattr(args, "format", None):
+        output_format = "burp"
+    alive_only = getattr(args, "alive_only", False)
+    burp_urls = urls_from_results(results, alive_only=alive_only) if output_format == "burp" else None
 
     if args.pipe:
-        for name in names_from_results(results):
-            print(name)
+        if burp_urls is not None:
+            for url in burp_urls:
+                print(url)
+        else:
+            for name in names_from_results(results):
+                print(name)
         if args.output:
-            save_output(results, args.output, output_format)
+            save_output(results, args.output, output_format, alive_only=alive_only)
         return
 
     if args.json:
@@ -168,4 +202,9 @@ def emit_results(results, args, console):
         print_text_results(results, console, args.quiet)
 
     if args.output:
-        save_output(results, args.output, output_format)
+        count = save_output(results, args.output, output_format, alive_only=alive_only)
+        if getattr(args, "burp", False) and not args.quiet:
+            if output_format == "burp" and count is not None:
+                console.info("{n} URLs exportadas para Burp Suite.".format(n=count))
+            console.info("Burp -> Target -> Scope -> Add -> Paste URL(s)")
+            console.info("Archivo: {p}".format(p=args.output))

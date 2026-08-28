@@ -20,6 +20,7 @@ from ctfr_reloaded.tui import run_tui
 from ctfr_reloaded.watch import run_watch_loop
 from ctfr_reloaded.constants import (
     DEFAULT_API_PORT,
+    DEFAULT_BURP_PROXY,
     DEFAULT_CACHE_TTL,
     DEFAULT_MAX_DOMAINS,
     DEFAULT_RATE_LIMIT,
@@ -47,7 +48,7 @@ def build_parser():
     parser.add_argument("--no-wildcards", action="store_true")
     parser.add_argument("-j", "--json", action="store_true")
     parser.add_argument(
-        "--format", choices=["plain", "json", "csv", "html", "pdf"], help="Formato de salida."
+        "--format", choices=["plain", "json", "csv", "html", "pdf", "burp"], help="Formato de salida."
     )
     parser.add_argument("--source", choices=source_choices, default="all")
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, metavar="SEC")
@@ -72,6 +73,11 @@ def build_parser():
     parser.add_argument("--rate-limit", type=float, default=DEFAULT_RATE_LIMIT, metavar="SEC")
     parser.add_argument("--max-domains", type=int, default=DEFAULT_MAX_DOMAINS, metavar="N")
     parser.add_argument("--pipe", action="store_true")
+    parser.add_argument(
+        "--burp",
+        action="store_true",
+        help="Modo Burp Suite: proxy 127.0.0.1:8080, resolve+alive y export de URLs.",
+    )
     parser.add_argument("--progress", action="store_true", help="Mostrar progreso.")
     parser.add_argument("--tqdm", action="store_true", help="Barra de progreso visual (tqdm).")
     parser.add_argument("--tui", action="store_true", help="Explorar resultados en TUI interactivo.")
@@ -165,6 +171,26 @@ def _explicit_cli_flags(parser, argv):
     return explicit
 
 
+def apply_burp_defaults(args):
+    if not args.burp:
+        return
+
+    explicit = getattr(args, "_explicit", {})
+    if not args.proxy:
+        args.proxy = DEFAULT_BURP_PROXY
+    if not explicit.get("alive"):
+        args.alive = True
+    if not explicit.get("resolve"):
+        args.resolve = True
+    if not args.output and not args.pipe:
+        if args.domain:
+            args.output = "{domain}-burp.txt".format(domain=clear_url(args.domain))
+        else:
+            args.output = "burp-urls.txt"
+    if not args.format:
+        args.format = "burp"
+
+
 def run_scan(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -182,6 +208,8 @@ def run_scan(argv=None):
     for key, value in args_dict.items():
         if key != "_explicit":
             setattr(args, key, value)
+
+    apply_burp_defaults(args)
 
     if not args.domain and not args.list:
         parser.error("Se requiere -d/--domain o -l/--list.")
@@ -242,7 +270,12 @@ def run_scan(argv=None):
         else:
             try:
                 domain = domains[0] if len(domains) == 1 else None
-                code = run_integration(args.with_tool, names, console, domain=domain)
+                extra_args = None
+                if args.burp and args.with_tool == "httpx":
+                    extra_args = ["-proxy", args.proxy or DEFAULT_BURP_PROXY]
+                code = run_integration(
+                    args.with_tool, names, console, domain=domain, extra_args=extra_args
+                )
                 if code != 0:
                     return code
             except (RuntimeError, ValueError) as exc:

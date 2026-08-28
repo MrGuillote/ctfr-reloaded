@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.2.3
+
+- **`--burp`**: modo Burp Suite — proxy automatico (`127.0.0.1:8080`), resolve+alive y export de URLs listas para importar en Target Scope
+
 ## 4.2.2
 
 - **Instalacion todo-en-uno**: `pip install ctfr-reloaded` incluye CLI, dashboard web (FastAPI/uvicorn) y export PDF

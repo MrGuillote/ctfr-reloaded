@@ -199,10 +199,51 @@ ctfr-reloaded -d ejemplo.com --pipe | httpx -silent
 
 ---
 
+## Burp Suite
+
+Modo mas sencillo: un solo flag prepara todo para Burp.
+
+```bash
+# 1. Abrir Burp y dejar el proxy en 127.0.0.1:8080 (default)
+# 2. Ejecutar CTFR en modo Burp
+ctfr-reloaded -d ejemplo.com --burp
+```
+
+`--burp` hace automaticamente:
+
+| Accion | Detalle |
+|--------|---------|
+| Proxy | Envia checks HTTP via `127.0.0.1:8080` (trafico visible en Burp) |
+| DNS + HTTP | Activa `--resolve` y `--alive` |
+| Export | Genera `ejemplo.com-burp.txt` con URLs (`https://...`) |
+
+**Importar en Burp:** Target → Scope → Add → Paste URL(s) → pegar el contenido del archivo.
+
+Solo URLs por consola (sin archivo):
+
+```bash
+ctfr-reloaded -d ejemplo.com --burp --pipe
+```
+
+Pasando httpx por Burp para poblar el site map:
+
+```bash
+ctfr-reloaded -d ejemplo.com --burp --with httpx
+```
+
+Proxy manual (sin `--burp`):
+
+```bash
+ctfr-reloaded -d ejemplo.com --alive --proxy http://127.0.0.1:8080 -o urls.txt --format burp
+```
+
+---
+
 ## Features
 
 | Feature | Flag |
 |---------|------|
+| Burp Suite | `--burp` |
 | Barra tqdm | `--tqdm` |
 | TUI interactivo | `--tui` |
 | Export PDF | `-o reporte.pdf` |

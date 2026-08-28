@@ -9,7 +9,7 @@ from ctfr_reloaded.domains import (
     split_apex_subdomains,
 )
 from ctfr_reloaded.filters import apply_result_filters
-from ctfr_reloaded.output import build_json_payload, detect_output_format
+from ctfr_reloaded.output import build_json_payload, detect_output_format, urls_from_results
 from ctfr_reloaded.scoring import score_subdomain, apply_exclude_patterns, enrich_scores
 from ctfr_reloaded.scanner import filter_new_only
 from ctfr_reloaded.sources import (
@@ -103,6 +103,23 @@ def test_detect_cdn_cloudflare():
 
 def test_detect_output_format_html():
     assert detect_output_format("out.html", False) == "html"
+
+
+def test_detect_output_format_burp():
+    assert detect_output_format("ejemplo.com-burp.txt", False) == "burp"
+    assert detect_output_format("urls.burp.txt", False) == "burp"
+
+
+def test_urls_from_results_burp():
+    results = {
+        "ejemplo.com": [
+            {"name": "api.ejemplo.com", "alive": True, "url": "https://api.ejemplo.com"},
+            {"name": "dev.ejemplo.com", "alive": False},
+        ]
+    }
+    urls = urls_from_results(results)
+    assert urls == ["https://api.ejemplo.com", "https://dev.ejemplo.com"]
+    assert urls_from_results(results, alive_only=True) == ["https://api.ejemplo.com"]
 
 
 def test_build_json_payload():
