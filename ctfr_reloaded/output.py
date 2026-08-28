@@ -3,7 +3,7 @@ import json
 import sys
 
 from ctfr_reloaded import __version__
-from ctfr_reloaded.reports import save_html_output
+from ctfr_reloaded.reports import save_html_output, save_pdf_output
 
 
 def names_from_results(results):
@@ -95,6 +95,8 @@ def detect_output_format(output_path, json_flag, explicit_format=None):
             return "csv"
         if lower.endswith(".html"):
             return "html"
+        if lower.endswith(".pdf"):
+            return "pdf"
         if lower.endswith(".json"):
             return "json"
     return "plain"
@@ -107,6 +109,8 @@ def save_output(results, output_path, output_format):
         save_csv_output(results, output_path)
     elif output_format == "html":
         save_html_output(results, output_path)
+    elif output_format == "pdf":
+        save_pdf_output(results, output_path)
     else:
         save_plain_output(results, output_path)
 

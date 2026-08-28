@@ -1,11 +1,16 @@
 import time
 
+from ctfr_reloaded.notifications import notify_watch
 from ctfr_reloaded.output import emit_results, names_from_results
 
 
 def run_watch_loop(domains, options, args, console, history, scan_fn):
     interval = args.interval
     console.info("Modo watch activo cada {s}s. Ctrl+C para detener.".format(s=interval))
+
+    discord = getattr(args, "discord_webhook", None)
+    telegram_token = getattr(args, "telegram_token", None)
+    telegram_chat_id = getattr(args, "telegram_chat_id", None)
 
     try:
         while True:
@@ -21,6 +26,13 @@ def run_watch_loop(domains, options, args, console, history, scan_fn):
                     )
                     for name in new_names:
                         console.subdomain(name, "(nuevo)")
+                    notify_watch(
+                        domain,
+                        new_names,
+                        discord_webhook=discord,
+                        telegram_token=telegram_token,
+                        telegram_chat_id=telegram_chat_id,
+                    )
                 else:
                     console.success(
                         "{d}: sin cambios ({n} total)".format(d=domain, n=len(current))

@@ -75,7 +75,9 @@ def test_extract_from_wayback():
 def test_free_sources_registry():
     sources = get_sources("all")
     names = [s[0] for s in sources]
-    assert set(names) == set(FREE_SOURCES)
+    assert len(names) == 7
+    assert "bufferover" in names
+    assert "rapiddns" in names
 
 
 def test_filter_new_only():

@@ -16,7 +16,7 @@ Si encuentras una vulnerabilidad en CTFR-Reloaded:
 
 ## Buenas practicas
 
-- Respeta rate limits de crt.sh, certspotter y censys
+- Respeta rate limits de crt.sh, certspotter, hackertarget y demas fuentes gratuitas
 - No compartas API keys en repositorios publicos
 - Usa `--cache` con moderacion en entornos compartidos
 - Revisa los resultados antes de ejecutar herramientas agresivas (`nuclei`, etc.)

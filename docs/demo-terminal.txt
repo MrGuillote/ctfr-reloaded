@@ -1,0 +1,23 @@
+$ python ctfr.py -d ejemplo.com --source all --takeover --tqdm
+
+          ____ _____ _____ ____
+         / ___|_   _|  ___|  _ \
+        | |     | | | |_  | |_) |
+        | |___  | | |  _| |  _ <
+         \____| |_| |_|   |_| \_\
+
+     CTFR-Reloaded v4.1.0
+     100% Free — by MrGuillote
+
+Dominios: 100%|████████████████████| 1/1 [00:08<00:00,  8.2s/item]
+
+[!] ---- TARGET: ejemplo.com ----
+
+[-]  api.ejemplo.com        (score:65, DNS, HTTP, 200)
+[-]  admin.ejemplo.com      (score:80, DNS, HTTP, 403)
+[-]  dev.ejemplo.com        (score:55, DNS, NO-HTTP)
+[-]  mail.ejemplo.com       (score:45, DNS, HTTP, 200)
+[-]  staging.ejemplo.com    (score:40, DNS, HTTP, 301)
+[-]  www.ejemplo.com        (score:50, DNS, HTTP, 200)
+
+[+] 6 subdominios encontrados. Listo!

@@ -8,7 +8,15 @@ from ctfr_reloaded.domains import (
 )
 
 # Fuentes 100% gratuitas, sin API key ni registro.
-FREE_SOURCES = ("crtsh", "certspotter", "hackertarget", "wayback", "anubis")
+FREE_SOURCES = (
+    "crtsh",
+    "certspotter",
+    "hackertarget",
+    "wayback",
+    "anubis",
+    "bufferover",
+    "rapiddns",
+)
 
 
 class CertificateSource:
@@ -67,6 +75,26 @@ class WaybackSource(CertificateSource):
 class AnubisSource(CertificateSource):
     name = "anubis"
     url_template = "https://jldc.me/anubis/subdomains/{domain}.txt"
+
+    def fetch(self, session, domain, timeout, retries, console):
+        safe_domain = sanitize_domain_for_url(domain)
+        url = self.url_template.format(domain=safe_domain)
+        return _fetch_text(session, url, domain, timeout, retries, console, self.name)
+
+
+class BufferoverSource(CertificateSource):
+    name = "bufferover"
+    url_template = "https://tls.bufferover.run/dns?q=.{domain}"
+
+    def fetch(self, session, domain, timeout, retries, console):
+        safe_domain = sanitize_domain_for_url(domain)
+        url = self.url_template.format(domain=safe_domain)
+        return _fetch_json(session, url, domain, timeout, retries, console, self.name)
+
+
+class RapidDnsSource(CertificateSource):
+    name = "rapiddns"
+    url_template = "https://rapiddns.io/subdomain/{domain}?full=1"
 
     def fetch(self, session, domain, timeout, retries, console):
         safe_domain = sanitize_domain_for_url(domain)
@@ -193,12 +221,60 @@ def extract_from_anubis(text, target, exclude_wildcards=False):
     return sorted(subdomains)
 
 
+def extract_from_bufferover(entries, target, exclude_wildcards=False):
+    subdomains = set()
+    if not isinstance(entries, dict):
+        return []
+    for key in ("FDNS_A", "RDNS"):
+        for item in entries.get(key, []):
+            if "," in str(item):
+                host = str(item).split(",")[1].strip().lower()
+            else:
+                host = str(item).strip().lower()
+            if not host:
+                continue
+            if exclude_wildcards and host.startswith("*."):
+                continue
+            if is_valid_subdomain(host, target):
+                subdomains.add(host)
+    return sorted(subdomains)
+
+
+def extract_from_rapiddns(html, target, exclude_wildcards=False):
+    subdomains = set()
+    for match in re.finditer(
+        r'<td>([a-z0-9][a-z0-9.\-]*\.{domain})</td>'.format(domain=re.escape(target)),
+        str(html),
+        re.IGNORECASE,
+    ):
+        host = match.group(1).strip().lower()
+        if exclude_wildcards and host.startswith("*."):
+            continue
+        if is_valid_subdomain(host, target):
+            subdomains.add(host)
+    if subdomains:
+        return sorted(subdomains)
+    for match in re.finditer(
+        r"([a-z0-9][a-z0-9\-]*\." + re.escape(target) + r")",
+        str(html),
+        re.IGNORECASE,
+    ):
+        host = match.group(1).strip().lower()
+        if exclude_wildcards and host.startswith("*."):
+            continue
+        if is_valid_subdomain(host, target):
+            subdomains.add(host)
+    return sorted(subdomains)
+
+
 SOURCE_REGISTRY = {
     "crtsh": (CrtShSource(), extract_from_crtsh),
     "certspotter": (CertspotterSource(), extract_from_certspotter),
     "hackertarget": (HackerTargetSource(), extract_from_hackertarget),
     "wayback": (WaybackSource(), extract_from_wayback),
     "anubis": (AnubisSource(), extract_from_anubis),
+    "bufferover": (BufferoverSource(), extract_from_bufferover),
+    "rapiddns": (RapidDnsSource(), extract_from_rapiddns),
 }
 
 

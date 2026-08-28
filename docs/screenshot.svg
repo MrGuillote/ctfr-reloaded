@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420">
+  <rect width="720" height="420" rx="12" fill="#0f172a"/>
+  <rect x="16" y="16" width="688" height="388" rx="8" fill="#111827" stroke="#334155"/>
+  <circle cx="40" cy="40" r="6" fill="#ef4444"/>
+  <circle cx="60" cy="40" r="6" fill="#eab308"/>
+  <circle cx="80" cy="40" r="6" fill="#22c55e"/>
+  <text x="100" y="45" fill="#94a3b8" font-family="Consolas, monospace" font-size="12">ctfr-reloaded  ejemplo.com</text>
+  <text x="32" y="80" fill="#38bdf8" font-family="Consolas, monospace" font-size="13">$ python ctfr.py -d ejemplo.com --source all --takeover --tqdm</text>
+  <text x="32" y="110" fill="#e2e8f0" font-family="Consolas, monospace" font-size="12">Dominios: 100%|ˆˆˆˆˆˆˆˆ| 1/1</text>
+  <text x="32" y="140" fill="#fbbf24" font-family="Consolas, monospace" font-size="12">[!] ---- TARGET: ejemplo.com ----</text>
+  <text x="32" y="170" fill="#86efac" font-family="Consolas, monospace" font-size="12">[-]  api.ejemplo.com     (score:65, DNS, HTTP)</text>
+  <text x="32" y="195" fill="#86efac" font-family="Consolas, monospace" font-size="12">[-]  admin.ejemplo.com   (score:80, DNS, HTTP)</text>
+  <text x="32" y="220" fill="#f87171" font-family="Consolas, monospace" font-size="12">[-]  old.ejemplo.com     (TAKEOVER: GitHub Pages)</text>
+  <text x="32" y="245" fill="#86efac" font-family="Consolas, monospace" font-size="12">[-]  www.ejemplo.com     (score:50, DNS, HTTP)</text>
+  <text x="32" y="280" fill="#22c55e" font-family="Consolas, monospace" font-size="12">[+] 4 subdominios encontrados. Listo!</text>
+  <text x="32" y="380" fill="#64748b" font-family="Segoe UI, sans-serif" font-size="11">CTFR-Reloaded v4.1.0  100% Free  MrGuillote</text>
+</svg>

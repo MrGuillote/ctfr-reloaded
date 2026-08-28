@@ -1,26 +1,28 @@
 # Changelog
 
+## 4.1.0
+
+- **7 fuentes 100% free**: +Bufferover, +RapidDNS
+- **tqdm**: barra de progreso visual (`--tqdm`)
+- **Webhooks**: Discord y Telegram en `--watch`
+- **TUI interactivo**: `--tui` para explorar resultados
+- **Export PDF**: `--format pdf` o `.pdf` (requiere `[pdf]`)
+- **PyPI**: publicacion automatica en release
+- **Docker GHCR**: `ghcr.io/mrguillote/ctfr-reloaded`
+- **Issue templates**: bug, feature, question
+- **Tests de integracion** con mocks de red (`responses`)
+- Puerto API por defecto: **9473**
+- Demo visual en `docs/screenshot.svg`
+
 ## 4.0.0 — 100% Free Edition
 
-- **Filosofia 100% gratuita**: sin API keys, sin registro, sin Censys
-- **5 fuentes pasivas gratuitas**: crt.sh, certspotter, HackerTarget, Wayback, Anubis
-- **Subdomain takeover detection** (`--takeover`, `--takeover-only`)
-- **Scoring automatico** de subdominios por interes
-- **Historial SQLite** (`--history`) para comparar scans
-- **Modo watch** (`--watch --interval`) para monitoreo continuo
-- **TLS info** (`--tls`) y **deteccion CDN** (`--cdn`)
-- **Config JSON** (`--init-config`, `~/.config/ctfr-reloaded/config.json`)
-- Integraciones: `--merge-amass`, `--merge-assetfinder`
-- Filtros `--exclude` para patrones
-- Reportes HTML/CSV enriquecidos con score, takeover, CDN, TLS
-
-## 3.1.0
-
-- Export HTML, reintentos, JSON, lista de dominios, integraciones httpx/nuclei
+- 5 fuentes pasivas sin API key
+- Subdomain takeover, scoring, historial SQLite, watch
+- TLS, CDN, config JSON, integraciones externas
 
 ## 3.0.0
 
-- Paquete modular, multi-fuente, resolve, alive, cache, API, tests, CI
+- Paquete modular, multi-fuente, API, tests, CI
 
 ## 2.0.0
 
