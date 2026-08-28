@@ -1,6 +1,5 @@
 import argparse
 import sys
-import time
 from types import SimpleNamespace
 
 from ctfr_reloaded import __version__
@@ -17,8 +16,10 @@ from ctfr_reloaded.integrations import run_integration
 from ctfr_reloaded.output import emit_results, names_from_results
 from ctfr_reloaded.scanner import load_baseline, scan_domains
 from ctfr_reloaded.sources import FREE_SOURCES
+from ctfr_reloaded.tui import run_tui
 from ctfr_reloaded.watch import run_watch_loop
 from ctfr_reloaded.constants import (
+    DEFAULT_API_PORT,
     DEFAULT_CACHE_TTL,
     DEFAULT_MAX_DOMAINS,
     DEFAULT_RATE_LIMIT,
@@ -38,47 +39,42 @@ def build_parser():
         "-V", "--version", action="version", version="CTFR-Reloaded {v}".format(v=__version__)
     )
     parser.add_argument("-d", "--domain", type=str, help="Dominio objetivo.")
+    parser.add_argument("-l", "--list", type=str, metavar="FILE", help="Archivo con dominios.")
+    parser.add_argument("-o", "--output", type=str, help="Salida (.txt, .json, .csv, .html, .pdf).")
+    parser.add_argument("-q", "--quiet", action="store_true")
+    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("--no-color", action="store_true")
+    parser.add_argument("--no-wildcards", action="store_true")
+    parser.add_argument("-j", "--json", action="store_true")
     parser.add_argument(
-        "-l", "--list", type=str, metavar="FILE", help="Archivo con lista de dominios."
+        "--format", choices=["plain", "json", "csv", "html", "pdf"], help="Formato de salida."
     )
-    parser.add_argument("-o", "--output", type=str, help="Archivo de salida (.txt, .json, .csv, .html).")
-    parser.add_argument("-q", "--quiet", action="store_true", help="Solo muestra el conteo final.")
-    parser.add_argument("-v", "--verbose", action="store_true", help="Modo verbose.")
-    parser.add_argument("--no-color", action="store_true", help="Desactivar colores.")
-    parser.add_argument("--no-wildcards", action="store_true", help="Excluir wildcards (*.dominio.com).")
-    parser.add_argument("-j", "--json", action="store_true", help="Salida JSON.")
-    parser.add_argument(
-        "--format", choices=["plain", "json", "csv", "html"], help="Formato de salida."
-    )
-    parser.add_argument(
-        "--source",
-        choices=source_choices,
-        default="all",
-        help="Fuente pasiva (default: all — todas las gratuitas).",
-    )
+    parser.add_argument("--source", choices=source_choices, default="all")
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, metavar="SEC")
     parser.add_argument("--retries", type=int, default=DEFAULT_RETRIES, metavar="N")
     parser.add_argument("--threads", type=int, default=DEFAULT_THREADS, metavar="N")
-    parser.add_argument("--proxy", type=str, help="Proxy HTTP/HTTPS.")
-    parser.add_argument("--resolve", action="store_true", help="Verificar DNS.")
-    parser.add_argument("--alive", action="store_true", help="Verificar HTTP/HTTPS.")
-    parser.add_argument("--resolved-only", action="store_true", help="Solo con DNS.")
-    parser.add_argument("--alive-only", action="store_true", help="Solo con HTTP.")
-    parser.add_argument("--takeover", action="store_true", help="Detectar subdomain takeover.")
-    parser.add_argument("--takeover-only", action="store_true", help="Solo vulnerables a takeover.")
-    parser.add_argument("--tls", action="store_true", help="Obtener info TLS.")
-    parser.add_argument("--cdn", action="store_true", help="Detectar CDN.")
-    parser.add_argument("--no-score", action="store_true", help="Desactivar scoring.")
-    parser.add_argument("--new-only", metavar="FILE", help="Solo nuevos vs archivo anterior.")
+    parser.add_argument("--proxy", type=str)
+    parser.add_argument("--resolve", action="store_true")
+    parser.add_argument("--alive", action="store_true")
+    parser.add_argument("--resolved-only", action="store_true")
+    parser.add_argument("--alive-only", action="store_true")
+    parser.add_argument("--takeover", action="store_true")
+    parser.add_argument("--takeover-only", action="store_true")
+    parser.add_argument("--tls", action="store_true")
+    parser.add_argument("--cdn", action="store_true")
+    parser.add_argument("--no-score", action="store_true")
+    parser.add_argument("--new-only", metavar="FILE")
     parser.add_argument("--apex-only", action="store_true")
     parser.add_argument("--subdomains-only", action="store_true")
-    parser.add_argument("--cache", action="store_true", help="Cache local.")
+    parser.add_argument("--cache", action="store_true")
     parser.add_argument("--cache-dir", type=str)
     parser.add_argument("--cache-ttl", type=int, default=DEFAULT_CACHE_TTL, metavar="SEC")
     parser.add_argument("--rate-limit", type=float, default=DEFAULT_RATE_LIMIT, metavar="SEC")
     parser.add_argument("--max-domains", type=int, default=DEFAULT_MAX_DOMAINS, metavar="N")
-    parser.add_argument("--pipe", action="store_true", help="Solo nombres para pipelines.")
-    parser.add_argument("--progress", action="store_true")
+    parser.add_argument("--pipe", action="store_true")
+    parser.add_argument("--progress", action="store_true", help="Mostrar progreso.")
+    parser.add_argument("--tqdm", action="store_true", help="Barra de progreso visual (tqdm).")
+    parser.add_argument("--tui", action="store_true", help="Explorar resultados en TUI interactivo.")
     parser.add_argument("--merge-subfinder", action="store_true")
     parser.add_argument("--merge-amass", action="store_true")
     parser.add_argument("--merge-assetfinder", action="store_true")
@@ -86,13 +82,16 @@ def build_parser():
         "--with", dest="with_tool",
         choices=["httpx", "nuclei", "subfinder", "amass", "assetfinder"],
     )
-    parser.add_argument("--exclude", action="append", default=[], help="Excluir patrones (ej: staging).")
-    parser.add_argument("--history", action="store_true", help="Guardar en historial SQLite.")
-    parser.add_argument("--no-history", action="store_true", help="No guardar historial.")
-    parser.add_argument("--watch", action="store_true", help="Monitorear cambios periodicamente.")
-    parser.add_argument("--interval", type=int, default=3600, metavar="SEC", help="Intervalo watch (default: 3600).")
-    parser.add_argument("--config", type=str, help="Ruta a config.json personalizado.")
-    parser.add_argument("--init-config", action="store_true", help="Crear config.json por defecto.")
+    parser.add_argument("--exclude", action="append", default=[])
+    parser.add_argument("--history", action="store_true")
+    parser.add_argument("--no-history", action="store_true")
+    parser.add_argument("--watch", action="store_true")
+    parser.add_argument("--interval", type=int, default=3600, metavar="SEC")
+    parser.add_argument("--discord-webhook", type=str, help="Webhook Discord para alertas --watch.")
+    parser.add_argument("--telegram-token", type=str, help="Bot token Telegram para --watch.")
+    parser.add_argument("--telegram-chat-id", type=str, help="Chat ID Telegram para --watch.")
+    parser.add_argument("--config", type=str)
+    parser.add_argument("--init-config", action="store_true")
     return parser
 
 
@@ -140,7 +139,8 @@ def build_options(args, config):
         merge_subfinder=args.merge_subfinder,
         merge_amass=args.merge_amass,
         merge_assetfinder=args.merge_assetfinder,
-        show_progress=args.progress or args.verbose,
+        show_progress=args.progress or args.verbose or args.tqdm,
+        use_tqdm=args.tqdm,
         exclude_patterns=exclude,
         history_enabled=history_enabled,
         version=__version__,
@@ -200,7 +200,6 @@ def run_scan(argv=None):
         console.banner(__version__)
 
     if args.watch:
-        args.watch_interval = args.interval
         return run_watch_loop(domains, options, args, console, history, scan_domains)
 
     try:
@@ -213,6 +212,9 @@ def run_scan(argv=None):
         args.json = True
 
     emit_results(results, args, console)
+
+    if args.tui:
+        run_tui(results, console)
 
     if args.with_tool:
         names = names_from_results(results)
@@ -241,7 +243,7 @@ def main(argv=None):
         serve_parser = argparse.ArgumentParser(description="API HTTP de CTFR-Reloaded")
         serve_parser.add_argument("command", choices=["serve"])
         serve_parser.add_argument("--host", default="127.0.0.1")
-        serve_parser.add_argument("--port", type=int, default=8000)
+        serve_parser.add_argument("--port", type=int, default=DEFAULT_API_PORT)
         serve_args = serve_parser.parse_args(argv)
         run_server(host=serve_args.host, port=serve_args.port)
         return 0

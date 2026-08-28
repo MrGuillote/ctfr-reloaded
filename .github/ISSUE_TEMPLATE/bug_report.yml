@@ -1,0 +1,41 @@
+name: Bug Report
+description: Reportar un bug en CTFR-Reloaded
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Gracias por reportar. Solo usa la herramienta en dominios autorizados.
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripcion del bug
+      placeholder: Que paso y que esperabas?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "4.1.0"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Pasos para reproducir
+      placeholder: |
+        1. python ctfr.py -d ejemplo.com ...
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Sistema operativo
+      placeholder: Windows 11 / Ubuntu 22.04
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / salida
+      render: shell

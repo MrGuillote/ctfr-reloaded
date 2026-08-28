@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentacion
+    url: https://github.com/MrGuillote/ctfr-reloaded#readme
+    about: Lee el README antes de abrir un issue
+  - name: Discussions
+    url: https://github.com/MrGuillote/ctfr-reloaded/discussions
+    about: Preguntas generales y ideas

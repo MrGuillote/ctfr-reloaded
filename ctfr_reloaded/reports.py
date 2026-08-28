@@ -73,3 +73,45 @@ def save_html_output(results, output_file):
 
     with open(output_file, "w", encoding="utf-8") as handle:
         handle.write(document)
+
+
+def save_pdf_output(results, output_file):
+    """Genera PDF simple. Requiere fpdf2 (pip install ctfr-reloaded[pdf])."""
+    try:
+        from fpdf import FPDF
+    except ImportError as exc:
+        raise RuntimeError('Instala soporte PDF: pip install "ctfr-reloaded[pdf]"') from exc
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 10, "CTFR-Reloaded Report", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", size=10)
+    total = sum(len(items) for items in results.values())
+    pdf.cell(0, 8, "Version {v} | Total: {t}".format(v=__version__, t=total), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(4)
+
+    pdf.set_font("Helvetica", "B", 9)
+    headers = ["Domain", "Subdomain", "Score", "DNS", "HTTP", "Takeover"]
+    col_widths = [35, 55, 15, 12, 12, 35]
+    for i, header in enumerate(headers):
+        pdf.cell(col_widths[i], 7, header, border=1)
+    pdf.ln()
+
+    pdf.set_font("Helvetica", size=8)
+    for domain, items in results.items():
+        for item in items:
+            row = [
+                domain[:30],
+                item["name"][:40],
+                str(item.get("score", "-")),
+                "Y" if item.get("resolved") else "-",
+                "Y" if item.get("alive") else "-",
+                (item.get("service") or "-")[:25] if item.get("vulnerable") else "-",
+            ]
+            for i, value in enumerate(row):
+                pdf.cell(col_widths[i], 6, value, border=1)
+            pdf.ln()
+
+    pdf.output(output_file)

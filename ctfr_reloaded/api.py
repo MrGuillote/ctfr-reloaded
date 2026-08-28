@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 from ctfr_reloaded import __version__
+from ctfr_reloaded.constants import DEFAULT_API_PORT
 from ctfr_reloaded.console import Console
 from ctfr_reloaded.domains import clear_url, is_valid_domain
 from ctfr_reloaded.output import build_json_payload
@@ -8,7 +9,7 @@ from ctfr_reloaded.scanner import scan_domains
 from ctfr_reloaded.sources import FREE_SOURCES
 
 
-def run_server(host="127.0.0.1", port=8000):
+def run_server(host="127.0.0.1", port=DEFAULT_API_PORT):
     try:
         from fastapi import FastAPI, HTTPException, Query
         import uvicorn

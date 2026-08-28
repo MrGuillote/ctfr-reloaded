@@ -168,25 +168,37 @@ def scan_domains(domains, options, console, history=None):
         version=options.version,
     )
     results = {}
-    progress = ProgressTracker(len(domains), console, enabled=options.show_progress)
+    progress = ProgressTracker(
+        len(domains),
+        console,
+        enabled=options.show_progress,
+        use_tqdm=getattr(options, "use_tqdm", False),
+        desc="Dominios",
+    )
     progress.start("Escaneando dominios")
 
-    if len(domains) == 1 or options.threads <= 1:
-        for domain in domains:
-            console.info("Escaneando {d}...".format(d=domain))
-            results[domain] = scan_domain(domain, options, console, cache, session, history)
-            progress.step(domain)
-        return results
-
-    with ThreadPoolExecutor(max_workers=options.threads) as executor:
-        futures = {
-            executor.submit(scan_domain, domain, options, console, cache, session, history): domain
-            for domain in domains
-        }
-        for future in as_completed(futures):
-            domain = futures[future]
-            results[domain] = future.result()
-            progress.step(domain)
-            console.success("Completado {d}".format(d=domain))
+    try:
+        if len(domains) == 1 or options.threads <= 1:
+            for domain in domains:
+                if not getattr(options, "use_tqdm", False):
+                    console.info("Escaneando {d}...".format(d=domain))
+                results[domain] = scan_domain(domain, options, console, cache, session, history)
+                progress.step(domain)
+        else:
+            with ThreadPoolExecutor(max_workers=options.threads) as executor:
+                futures = {
+                    executor.submit(
+                        scan_domain, domain, options, console, cache, session, history
+                    ): domain
+                    for domain in domains
+                }
+                for future in as_completed(futures):
+                    domain = futures[future]
+                    results[domain] = future.result()
+                    progress.step(domain)
+                    if not getattr(options, "use_tqdm", False):
+                        console.success("Completado {d}".format(d=domain))
+    finally:
+        progress.close()
 
     return {domain: results[domain] for domain in domains}

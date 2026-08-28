@@ -1,0 +1,28 @@
+name: Feature Request
+description: Sugerir una mejora para CTFR-Reloaded
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema o necesidad
+      placeholder: Que te gustaria poder hacer?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solucion propuesta
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Prioridad
+      options:
+        - Baja
+        - Media
+        - Alta
+    validations:
+      required: true
