@@ -8,32 +8,58 @@
 
 Herramienta de enumeracion de subdominios **100% gratuita** — sin API keys, sin registro, sin costo.
 
-Desarrollado por [MrGuillote](https://github.com/MrGuillote).
+Desarrollado por **[MrGuillote](https://github.com/MrGuillote)**.
+
+| CLI + TUI | Dashboard web | Consola en vivo |
+|-----------|---------------|-----------------|
+| 8 fuentes CT gratuitas | Stats, scores y export | Logs SSE durante el scan |
+| DNS, HTTP, takeover, TLS, CDN | Tabla filtrable y ordenable | Mismo motor que la terminal |
+
+---
 
 ## Demo
+
+Capturas reales con **`osint.com.ar`**: todas las fuentes, resolucion DNS, comprobacion HTTP, takeover, TLS, CDN y scoring.
 
 ### Terminal
 
 <p align="center">
-  <img src="docs/screenshot.svg" alt="CTFR-Reloaded terminal demo" width="720"/>
+  <img src="https://raw.githubusercontent.com/MrGuillote/ctfr-reloaded/main/docs/terminal-demo.png" alt="CTFR-Reloaded — scan en terminal" width="860"/>
 </p>
 
-```
-$ python ctfr.py -d ejemplo.com --source all --resolve --alive --takeover --tls --cdn --tqdm
-[+] 42 subdominios encontrados. Listo!
+<p align="center"><sub>CLI con colores, logs por fuente y barras de progreso</sub></p>
+
+```bash
+python ctfr.py -d ejemplo.com --source all --resolve --alive --takeover --tls --cdn --tqdm -v
 ```
 
-Ver salida completa en [docs/demo-terminal.txt](docs/demo-terminal.txt).
+Salida completa de ejemplo: [docs/demo-terminal.txt](docs/demo-terminal.txt).
 
 ### Dashboard web
 
 <p align="center">
-  <img src="docs/dashboard-scan.png" alt="Dashboard — resultados del scan" width="920"/>
+  <img src="https://raw.githubusercontent.com/MrGuillote/ctfr-reloaded/main/docs/dashboard-scan.png" alt="Dashboard — resultados del scan" width="920"/>
 </p>
 
+<p align="center"><sub>Tarjetas de resumen, distribucion de scores, keywords y tabla interactiva</sub></p>
+
+Levantar el dashboard:
+
+```bash
+pip install "ctfr-reloaded[api]"
+python -m ctfr_reloaded serve
+# → http://127.0.0.1:9473/
+```
+
+### Consola de actividad
+
 <p align="center">
-  <img src="docs/dashboard-log.png" alt="Dashboard — consola de actividad" width="920"/>
+  <img src="https://raw.githubusercontent.com/MrGuillote/ctfr-reloaded/main/docs/dashboard-log.png" alt="Dashboard — consola de actividad en vivo" width="920"/>
 </p>
+
+<p align="center"><sub>Panel lateral <strong>LOG</strong> con streaming en tiempo real (fuentes, DNS, HTTP, scoring…)</sub></p>
+
+---
 
 ## Instalacion
 
@@ -196,13 +222,13 @@ python -m ctfr_reloaded serve
 
 Puerto por defecto: **9473** (configurable con `--port`).
 
-El dashboard incluye tarjetas de estadisticas, distribucion de scores, keywords detectadas, filtro y orden por columnas, export a JSON/HTML, y una **consola lateral en vivo** durante el scan (logs de fuentes, DNS, HTTP, etc.). Ver captura en la seccion [Dashboard web](#dashboard-web) arriba. El reporte `-o reporte.html` usa el mismo diseno.
+El dashboard incluye tarjetas de estadisticas, distribucion de scores, keywords detectadas, filtro y orden por columnas, export a JSON/HTML, y una **consola lateral en vivo** durante el scan. Ver capturas en la seccion [Demo](#demo). El reporte `-o reporte.html` usa el mismo diseno.
 
 ## Publicar en PyPI (mantenedores)
 
-1. Crear release `v4.2.0` en GitHub
+1. Crear tag `vX.Y.Z` y pushearlo a GitHub
 2. Configurar secret `PYPI_API_TOKEN` en el repo
-3. El workflow `publish-pypi.yml` publica automaticamente
+3. Ejecutar workflow `publish-pypi.yml` (manual o tras release publicado)
 
 ## Desarrollo
 

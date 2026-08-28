@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ctfr-reloaded"
-version = "4.2.0"
+version = "4.2.1"
 description = "100% free subdomain discovery — no API keys required"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }

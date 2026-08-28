@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.2.1
+
+- Capturas reales en README (terminal, dashboard y consola de actividad)
+- URLs absolutas de GitHub para que las imagenes se vean tambien en PyPI
+
 ## 4.2.0
 
 - **Dashboard web** en `http://127.0.0.1:9473/` con stats, filtros, tabla ordenable y export JSON/HTML
