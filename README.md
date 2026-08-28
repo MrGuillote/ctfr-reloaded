@@ -12,16 +12,37 @@ Desarrollado por [MrGuillote](https://github.com/MrGuillote).
 
 ## Demo
 
+### Terminal
+
 <p align="center">
   <img src="docs/screenshot.svg" alt="CTFR-Reloaded terminal demo" width="720"/>
 </p>
 
 ```
-$ python ctfr.py -d ejemplo.com --source all --takeover --tqdm
+$ python ctfr.py -d ejemplo.com --source all --resolve --alive --takeover --tls --cdn --tqdm
 [+] 42 subdominios encontrados. Listo!
 ```
 
 Ver salida completa en [docs/demo-terminal.txt](docs/demo-terminal.txt).
+
+### Dashboard web
+
+Resultados del scan (stats, tabla, scores):
+
+<p align="center">
+  <img src="docs/dashboard-scan.svg" alt="CTFR-Reloaded — dashboard con resultados del scan" width="920"/>
+</p>
+
+Consola de actividad en vivo (log lateral):
+
+<p align="center">
+  <img src="docs/dashboard-log.svg" alt="CTFR-Reloaded — consola de actividad durante el scan" width="920"/>
+</p>
+
+<p align="center"><sub>
+  Sube tus capturas como <code>docs/dashboard-scan.png</code> y <code>docs/dashboard-log.png</code>,
+  luego cambia las rutas <code>.svg</code> → <code>.png</code> en las lineas de arriba.
+</sub></p>
 
 ## Instalacion
 
@@ -39,7 +60,10 @@ pip install "ctfr-reloaded[api,pdf]"
 ```bash
 git clone https://github.com/MrGuillote/ctfr-reloaded.git
 cd ctfr-reloaded
-pip install -e ".[dev]"
+pip install -e ".[dev,api]"
+
+# Scan full de ejemplo
+python ctfr.py -d ejemplo.com --source all --resolve --alive --takeover --tls --cdn --tqdm -v -o reporte.html --format html
 ```
 
 ### Docker (GHCR)
@@ -66,9 +90,45 @@ docker run --rm ghcr.io/mrguillote/ctfr-reloaded:latest -d ejemplo.com
 ## Uso rapido
 
 ```bash
-# Scan completo
+# Scan basico (todas las fuentes por defecto)
 python ctfr.py -d ejemplo.com
+```
 
+### Scan FULL (traer todo)
+
+Todas las fuentes + DNS + HTTP + takeover + TLS + CDN + score + reporte HTML:
+
+```bash
+python ctfr.py -d ejemplo.com \
+  --source all \
+  --resolve --alive --takeover --tls --cdn \
+  --tqdm -v \
+  --history \
+  -o reporte.html --format html
+```
+
+Equivalente en una linea:
+
+```bash
+python ctfr.py -d ejemplo.com --source all --resolve --alive --takeover --tls --cdn --tqdm -v --history -o reporte.html --format html
+```
+
+Salida JSON en lugar de HTML:
+
+```bash
+python ctfr.py -d ejemplo.com --source all --resolve --alive --takeover --tls --cdn --tqdm -j -o resultados.json
+```
+
+Docker (mismo scan full):
+
+```bash
+docker run --rm ghcr.io/mrguillote/ctfr-reloaded:latest \
+  -d ejemplo.com --source all --resolve --alive --takeover --tls --cdn --tqdm -v -j
+```
+
+### Mas ejemplos
+
+```bash
 # Recon pro con barra de progreso
 python ctfr.py -d ejemplo.com --resolve --alive --takeover --tls --cdn --tqdm
 
@@ -139,16 +199,17 @@ python -m ctfr_reloaded serve
 |-----|-------------|
 | http://127.0.0.1:9473/ | **Dashboard web** — formulario, estadisticas, tabla interactiva |
 | http://127.0.0.1:9473/docs | Documentacion API (Swagger) |
-| http://127.0.0.1:9473/scan?domain=ejemplo.com | Scan JSON |
+| http://127.0.0.1:9473/scan?domain=ejemplo.com | Scan JSON basico |
+| http://127.0.0.1:9473/scan?domain=ejemplo.com&source=all&resolve=true&alive=true&takeover=true&tls=true&cdn=true&score=true | Scan FULL (API) |
 | http://127.0.0.1:9473/health | Estado del servidor |
 
 Puerto por defecto: **9473** (configurable con `--port`).
 
-El dashboard incluye tarjetas de estadisticas, distribucion de scores, keywords detectadas, filtro y orden por columnas, y export a JSON/HTML. El reporte `-o reporte.html` usa el mismo diseno.
+El dashboard incluye tarjetas de estadisticas, distribucion de scores, keywords detectadas, filtro y orden por columnas, export a JSON/HTML, y una **consola lateral en vivo** durante el scan (logs de fuentes, DNS, HTTP, etc.). Ver captura en la seccion [Dashboard web](#dashboard-web) arriba. El reporte `-o reporte.html` usa el mismo diseno.
 
 ## Publicar en PyPI (mantenedores)
 
-1. Crear release `v4.1.0` en GitHub
+1. Crear release `v4.2.0` en GitHub
 2. Configurar secret `PYPI_API_TOKEN` en el repo
 3. El workflow `publish-pypi.yml` publica automaticamente
 

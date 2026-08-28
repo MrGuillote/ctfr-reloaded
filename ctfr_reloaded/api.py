@@ -1,3 +1,6 @@
+import json
+import queue
+import threading
 from types import SimpleNamespace
 
 from ctfr_reloaded import __version__
@@ -8,6 +11,7 @@ from ctfr_reloaded.output import build_json_payload
 from ctfr_reloaded.reports import payload_to_results, render_html_report
 from ctfr_reloaded.scanner import scan_domains
 from ctfr_reloaded.sources import FREE_SOURCES
+from ctfr_reloaded.stream_console import StreamConsole
 from ctfr_reloaded.web import render_dashboard
 
 
@@ -19,6 +23,7 @@ def build_scan_options(
     tls=False,
     cdn=False,
     score=True,
+    show_progress=False,
 ):
     return SimpleNamespace(
         source=source,
@@ -47,24 +52,32 @@ def build_scan_options(
         merge_subfinder=False,
         merge_amass=False,
         merge_assetfinder=False,
-        show_progress=False,
+        show_progress=show_progress,
         exclude_patterns=[],
         history_enabled=False,
         version=__version__,
     )
 
 
-def run_scan(domain, options, console):
+def validate_scan_params(domain, source):
+    if source != "all" and source not in FREE_SOURCES:
+        raise ValueError("Fuente no valida")
+
     clean = clear_url(domain)
     if not clean or not is_valid_domain(clean):
         raise ValueError("Dominio invalido")
+    return clean
+
+
+def run_scan(domain, options, console):
+    clean = validate_scan_params(domain, options.source)
     return scan_domains([clean], options, console)
 
 
 def create_app():
     try:
         from fastapi import FastAPI, HTTPException, Query
-        from fastapi.responses import HTMLResponse
+        from fastapi.responses import HTMLResponse, StreamingResponse
     except ImportError as exc:
         raise RuntimeError('Instala dependencias API: pip install "ctfr-reloaded[api]"') from exc
 
@@ -74,6 +87,27 @@ def create_app():
         description="API gratuita de enumeracion de subdominios — MrGuillote",
     )
     console = Console(verbose=False, use_colors=False)
+
+    def parse_scan_params(
+        domain,
+        source="all",
+        resolve=False,
+        alive=False,
+        takeover=False,
+        tls=False,
+        cdn=False,
+        score=True,
+    ):
+        return {
+            "domain": domain,
+            "source": source,
+            "resolve": resolve,
+            "alive": alive,
+            "takeover": takeover,
+            "tls": tls,
+            "cdn": cdn,
+            "score": score,
+        }
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard():
@@ -99,25 +133,109 @@ def create_app():
         cdn: bool = False,
         score: bool = True,
     ):
-        if source != "all" and source not in FREE_SOURCES:
-            raise HTTPException(status_code=400, detail="Fuente no valida")
-
-        options = build_scan_options(
-            source=source,
-            resolve=resolve,
-            alive=alive,
-            takeover=takeover,
-            tls=tls,
-            cdn=cdn,
-            score=score,
-        )
+        params = parse_scan_params(domain, source, resolve, alive, takeover, tls, cdn, score)
+        options = build_scan_options(**{k: v for k, v in params.items() if k != "domain"})
         try:
-            results = run_scan(domain, options, console)
+            results = run_scan(params["domain"], options, console)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        except (RuntimeError, ValueError) as exc:
+        except RuntimeError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
         return build_json_payload(results)
+
+    @app.get("/scan/stream")
+    def scan_stream(
+        domain: str = Query(..., description="Dominio objetivo"),
+        source: str = Query("all"),
+        resolve: bool = False,
+        alive: bool = False,
+        takeover: bool = False,
+        tls: bool = False,
+        cdn: bool = False,
+        score: bool = True,
+    ):
+        params = parse_scan_params(domain, source, resolve, alive, takeover, tls, cdn, score)
+        try:
+            validate_scan_params(params["domain"], params["source"])
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        options = build_scan_options(
+            source=params["source"],
+            resolve=params["resolve"],
+            alive=params["alive"],
+            takeover=params["takeover"],
+            tls=params["tls"],
+            cdn=params["cdn"],
+            score=params["score"],
+            show_progress=True,
+        )
+
+        def event_stream():
+            event_queue = queue.Queue()
+            result_holder = {}
+            error_holder = {}
+
+            def on_event(event):
+                event_queue.put(("log", event))
+
+            def worker():
+                stream_console = StreamConsole(on_event=on_event)
+                try:
+                    stream_console.info(
+                        "Iniciando scan de {d} (fuente: {s})".format(
+                            d=params["domain"], s=params["source"]
+                        )
+                    )
+                    results = run_scan(params["domain"], options, stream_console)
+                    payload = build_json_payload(results)
+                    count = payload.get("count") or payload.get("total", 0)
+                    stream_console.success(
+                        "Scan completado: {n} subdominios".format(n=count)
+                    )
+                    result_holder["payload"] = payload
+                except Exception as exc:
+                    error_holder["detail"] = str(exc)
+                    stream_console.error(str(exc))
+                finally:
+                    event_queue.put(("done", None))
+
+            thread = threading.Thread(target=worker, daemon=True)
+            thread.start()
+
+            while True:
+                try:
+                    kind, payload = event_queue.get(timeout=1.0)
+                except queue.Empty:
+                    yield ": keepalive\n\n"
+                    continue
+
+                if kind == "done":
+                    if error_holder:
+                        yield "event: failed\ndata: {data}\n\n".format(
+                            data=json.dumps(error_holder, ensure_ascii=False)
+                        )
+                    else:
+                        yield "event: result\ndata: {data}\n\n".format(
+                            data=json.dumps(result_holder["payload"], ensure_ascii=False)
+                        )
+                    break
+
+                yield "event: log\ndata: {data}\n\n".format(
+                    data=json.dumps(payload, ensure_ascii=False)
+                )
+
+            thread.join(timeout=30)
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     @app.post("/report", response_class=HTMLResponse)
     def report(payload: dict):

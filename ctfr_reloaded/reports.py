@@ -5,6 +5,26 @@ from datetime import datetime, timezone
 from ctfr_reloaded import __version__
 from ctfr_reloaded.scoring import HIGH_VALUE_KEYWORDS
 
+# Rangos reales de score (0-100), no valores discretos sueltos.
+SCORE_BUCKETS = (
+    ("0-14", 0, 14),
+    ("15-24", 15, 24),
+    ("25-39", 25, 39),
+    ("40-59", 40, 59),
+    ("60-100", 60, 100),
+)
+
+
+def compute_score_distribution(scores):
+    distribution = {label: 0 for label, _, _ in SCORE_BUCKETS}
+    for raw_score in scores:
+        score = int(raw_score or 0)
+        for label, low, high in SCORE_BUCKETS:
+            if low <= score <= high:
+                distribution[label] += 1
+                break
+    return distribution
+
 
 def flatten_results(results):
     rows = []
@@ -24,16 +44,7 @@ def compute_report_stats(results):
             if keyword in name:
                 keywords[keyword] = keywords.get(keyword, 0) + 1
 
-    distribution = {"10": 0, "15": 0, "20": 0, "25+": 0}
-    for score in scores:
-        if score >= 25:
-            distribution["25+"] += 1
-        elif score >= 20:
-            distribution["20"] += 1
-        elif score >= 15:
-            distribution["15"] += 1
-        else:
-            distribution["10"] += 1
+    distribution = compute_score_distribution(scores)
 
     return {
         "total": len(rows),
@@ -86,6 +97,9 @@ def _report_styles():
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
     .shell { max-width: 1280px; margin: 0 auto; padding: 28px 20px 48px; }
+    .content-stack { display: flex; flex-direction: column; gap: 18px; }
+    .stack { display: flex; flex-direction: column; gap: 18px; }
+    .stack .panel + .panel { margin-top: 0; }
     .hero {
       display: flex; justify-content: space-between; gap: 16px; align-items: flex-start;
       margin-bottom: 24px; flex-wrap: wrap;
@@ -106,7 +120,7 @@ def _report_styles():
       box-shadow: var(--shadow);
       backdrop-filter: blur(18px);
     }
-    .panel + .panel { margin-top: 18px; }
+    .panel + .panel { margin-top: 0; }
     .panel-header {
       padding: 16px 18px; border-bottom: 1px solid var(--border);
       display: flex; justify-content: space-between; align-items: center; gap: 12px;
@@ -132,7 +146,7 @@ def _report_styles():
     .stat.warning .value { color: var(--warning); }
     .stat.danger .value { color: var(--danger); }
     .bars { display: grid; gap: 10px; }
-    .bar-row { display: grid; grid-template-columns: 52px 1fr 42px; gap: 10px; align-items: center; }
+    .bar-row { display: grid; grid-template-columns: 72px 1fr 42px; gap: 10px; align-items: center; }
     .bar-track {
       height: 10px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden;
     }
@@ -164,7 +178,8 @@ def _report_styles():
     .no { color: var(--muted); }
     .vuln { color: var(--danger); font-weight: 600; }
     .meta { color: var(--muted); font-size: 0.88rem; }
-    .grid-2 { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 18px; }
+    .grid-2 { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 18px; align-items: stretch; }
+    .grid-2 .panel { height: 100%; margin: 0; }
     @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
     details summary { cursor: pointer; color: var(--muted); }
     details p, details ul { color: var(--muted); line-height: 1.55; }
@@ -293,7 +308,10 @@ def render_html_report(results, title="CTFR-Reloaded Report"):
     <div class="panel"><div class="panel-body">{stats_cards}</div></div>
     <div class="grid-2">
       <div class="panel">
-        <div class="panel-header"><h2>Distribucion de scores</h2></div>
+        <div class="panel-header">
+        <h2>Distribucion de scores</h2>
+        <span class="meta">rangos 0-100</span>
+      </div>
         <div class="panel-body">{distribution}</div>
       </div>
       <div class="panel">
