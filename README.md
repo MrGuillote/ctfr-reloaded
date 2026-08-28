@@ -49,18 +49,19 @@ docker pull ghcr.io/mrguillote/ctfr-reloaded:latest
 docker run --rm ghcr.io/mrguillote/ctfr-reloaded:latest -d ejemplo.com
 ```
 
-## Fuentes gratuitas (7)
+## Fuentes gratuitas (8)
 
-| Fuente | Flag |
-|--------|------|
-| crt.sh | `crtsh` |
-| Certspotter | `certspotter` |
-| HackerTarget | `hackertarget` |
-| Wayback Machine | `wayback` |
-| Anubis | `anubis` |
-| Bufferover | `bufferover` |
-| RapidDNS | `rapiddns` |
-| **Todas** | `all` (default) |
+| Fuente | Flag | Notas |
+|--------|------|-------|
+| crt.sh | `crtsh` | Lento, a veces 404/timeout |
+| **crt.name** | `crtname` | Rapido, recomendado |
+| Certspotter | `certspotter` | |
+| HackerTarget | `hackertarget` | |
+| Wayback Machine | `wayback` | |
+| Anubis | `anubis` | |
+| Bufferover | `bufferover` | |
+| RapidDNS | `rapiddns` | |
+| **Todas** | `all` (default) | |
 
 ## Uso rapido
 
@@ -97,16 +98,53 @@ python ctfr.py -d ejemplo.com --pipe | httpx -silent
 | Takeover detection | `--takeover` |
 | Historial SQLite | `--history` |
 | Monitoreo | `--watch --interval SEC` |
+| Desactivar score | `--no-score` |
 
-## API local
+## Score (priorizacion)
+
+Cada subdominio recibe un **score de 0 a 100** para ordenar resultados: arriba van los que conviene revisar primero en un pentest u OSINT.
+
+**No es un nivel de riesgo real** ni confirma vulnerabilidades; es una heuristica de prioridad.
+
+| Factor | Puntos |
+|--------|--------|
+| Base | +10 |
+| Palabra clave interesante en el nombre (`api`, `dev`, `mail`, `admin`, `test`, `git`, etc.) | +15 por match |
+| Resuelve DNS (`--resolve`) | +10 |
+| Responde HTTP (`--alive`) | +20 |
+| Posible subdomain takeover (`--takeover`) | +50 |
+| Deteccion CDN (`--cdn`) | +5 |
+| Info TLS (`--tls`) | +5 |
+| Nombre corto (apex o pocas partes, ej. `ejemplo.com`) | +5 |
+
+Ejemplo sin flags extra:
+
+```
+api.ejemplo.com     → 25  (10 + keyword "api")
+dev.ejemplo.com     → 25  (10 + keyword "dev")
+ejemplo.com         → 15  (10 + nombre corto)
+www.ejemplo.com     → 10  (solo base)
+```
+
+Con `--resolve --alive --takeover` los scores suben segun lo que se detecte en cada host. Para desactivar el calculo: `--no-score`.
+
+## API local y dashboard web
 
 ```bash
 pip install "ctfr-reloaded[api]"
 python -m ctfr_reloaded serve
-curl "http://127.0.0.1:9473/scan?domain=ejemplo.com"
 ```
 
+| URL | Descripcion |
+|-----|-------------|
+| http://127.0.0.1:9473/ | **Dashboard web** — formulario, estadisticas, tabla interactiva |
+| http://127.0.0.1:9473/docs | Documentacion API (Swagger) |
+| http://127.0.0.1:9473/scan?domain=ejemplo.com | Scan JSON |
+| http://127.0.0.1:9473/health | Estado del servidor |
+
 Puerto por defecto: **9473** (configurable con `--port`).
+
+El dashboard incluye tarjetas de estadisticas, distribucion de scores, keywords detectadas, filtro y orden por columnas, y export a JSON/HTML. El reporte `-o reporte.html` usa el mismo diseno.
 
 ## Publicar en PyPI (mantenedores)
 

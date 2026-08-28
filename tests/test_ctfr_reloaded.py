@@ -75,8 +75,8 @@ def test_extract_from_wayback():
 def test_free_sources_registry():
     sources = get_sources("all")
     names = [s[0] for s in sources]
-    assert len(names) == 7
-    assert "bufferover" in names
+    assert len(names) == 8
+    assert "crtname" in names
     assert "rapiddns" in names
 
 
