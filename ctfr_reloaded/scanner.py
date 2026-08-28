@@ -116,10 +116,19 @@ def scan_domain(domain, options, console, cache, session, history=None):
         subdomains_only=options.subdomains_only,
     )
 
+    if subdomains:
+        console.info(
+            "{n} subdominios unicos tras fuentes para {d}".format(n=len(subdomains), d=domain)
+        )
+
     if options.new_only:
         subdomains = filter_new_only(subdomains, options.baseline_set)
 
     if options.resolve or options.alive:
+        if options.resolve:
+            console.info("Resolviendo DNS ({n} hosts)...".format(n=len(subdomains)))
+        if options.alive:
+            console.info("Comprobando HTTP ({n} hosts)...".format(n=len(subdomains)))
         enriched = enrich_subdomains(
             subdomains,
             resolve=options.resolve,
@@ -132,9 +141,16 @@ def scan_domain(domain, options, console, cache, session, history=None):
         enriched = [{"name": name} for name in subdomains]
 
     if options.takeover:
+        console.info("Analizando posibles takeovers...")
         enriched = enrich_takeover(enriched, threads=options.threads, timeout=options.timeout)
 
     if options.tls or options.cdn:
+        labels = []
+        if options.tls:
+            labels.append("TLS")
+        if options.cdn:
+            labels.append("CDN")
+        console.info("Enriqueciendo {l}...".format(l=" y ".join(labels)))
         enriched = enrich_tls_cdn(
             enriched,
             session=session,
@@ -154,6 +170,7 @@ def scan_domain(domain, options, console, cache, session, history=None):
     )
 
     if options.score:
+        console.info("Calculando scores de prioridad...")
         enriched = enrich_scores(enriched)
 
     if history and options.history_enabled:

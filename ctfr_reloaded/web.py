@@ -2,7 +2,7 @@ import html
 import json
 
 from ctfr_reloaded import __version__
-from ctfr_reloaded.reports import _report_styles, _score_help_block
+from ctfr_reloaded.reports import SCORE_BUCKETS, _report_styles, _score_help_block
 from ctfr_reloaded.scoring import HIGH_VALUE_KEYWORDS
 
 
@@ -63,6 +63,54 @@ def render_dashboard(version=None, sources=None):
     .empty {
       text-align:center; color: var(--muted); padding: 42px 20px;
     }
+    .activity-backdrop {
+      position: fixed; inset: 0; background: rgba(4, 8, 16, 0.55);
+      backdrop-filter: blur(2px); z-index: 90; opacity: 0; pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .activity-backdrop.open { opacity: 1; pointer-events: auto; }
+    .activity-panel {
+      position: fixed; top: 0; right: 0; width: min(440px, 94vw); height: 100vh;
+      background: rgba(10, 16, 28, 0.98); border-left: 1px solid var(--border);
+      box-shadow: -20px 0 60px rgba(0,0,0,0.45); z-index: 100;
+      display: flex; flex-direction: column; transform: translateX(100%);
+      transition: transform 0.24s ease;
+    }
+    .activity-panel.open { transform: translateX(0); }
+    .activity-header {
+      display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+      padding: 16px 18px; border-bottom: 1px solid var(--border);
+    }
+    .activity-header strong { display:block; margin-bottom:4px; }
+    .activity-status { color: var(--muted); font-size: 0.82rem; }
+    .activity-body {
+      flex: 1; overflow-y: auto; padding: 12px 14px;
+      font-family: Consolas, "Cascadia Mono", "Segoe UI Mono", monospace;
+      font-size: 0.8rem; line-height: 1.45; background: rgba(4, 8, 16, 0.92);
+    }
+    .log-line { padding: 3px 0; white-space: pre-wrap; word-break: break-word; }
+    .log-line .ts { color: #64748b; margin-right: 8px; }
+    .log-line.info { color: #7dd3fc; }
+    .log-line.debug { color: #93c5fd; }
+    .log-line.success { color: #6ee7b7; }
+    .log-line.warn { color: #fcd34d; }
+    .log-line.error { color: #fca5a5; }
+    .activity-footer {
+      padding: 10px 14px; border-top: 1px solid var(--border); color: var(--muted);
+      font-size: 0.78rem;
+    }
+    .activity-fab {
+      position: fixed; right: 0; top: 50%; transform: translateY(-50%);
+      z-index: 85; border: 1px solid var(--border); border-right: none;
+      border-radius: 12px 0 0 12px; padding: 14px 10px;
+      background: linear-gradient(135deg, rgba(77, 163, 255, 0.22), rgba(124, 92, 255, 0.18));
+      color: var(--text); font: inherit; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; box-shadow: -8px 0 24px rgba(0,0,0,0.25);
+      writing-mode: vertical-rl; text-orientation: mixed; letter-spacing: 0.04em;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+    .activity-fab:hover { transform: translateY(-50%) translateX(-2px); }
+    .activity-fab.hidden { display: none; }
   """
 
     return """<!DOCTYPE html>
@@ -86,11 +134,13 @@ def render_dashboard(version=None, sources=None):
         </div>
       </div>
       <div class="actions">
+        <button type="button" class="btn btn-secondary hidden" id="activity-open-inline">Ver log</button>
         <a class="btn btn-secondary" href="/docs">API Docs</a>
         <a class="btn btn-secondary" href="/health" target="_blank">Health</a>
       </div>
     </div>
 
+    <div class="content-stack">
     <div class="panel">
       <div class="panel-header"><h2>Nuevo scan</h2></div>
       <div class="panel-body">
@@ -124,11 +174,14 @@ def render_dashboard(version=None, sources=None):
       </div>
     </div>
 
-    <div id="results" class="hidden">
+    <div id="results" class="stack hidden">
       <div class="panel"><div class="panel-body" id="stats"></div></div>
       <div class="grid-2">
         <div class="panel">
-          <div class="panel-header"><h2>Distribucion de scores</h2></div>
+          <div class="panel-header">
+            <h2>Distribucion de scores</h2>
+            <span class="meta">rangos 0-100</span>
+          </div>
           <div class="panel-body" id="distribution"></div>
         </div>
         <div class="panel">
@@ -172,7 +225,22 @@ def render_dashboard(version=None, sources=None):
         <p>Ingresa un dominio y presiona <strong>Escanear</strong> para ver estadisticas y resultados.</p>
       </div>
     </div>
+    </div>
   </div>
+
+  <div id="activity-backdrop" class="activity-backdrop"></div>
+  <button type="button" id="activity-open" class="activity-fab hidden" title="Abrir consola de actividad">LOG</button>
+  <aside id="activity-panel" class="activity-panel" aria-live="polite">
+    <div class="activity-header">
+      <div>
+        <strong>Consola de actividad</strong>
+        <div class="activity-status" id="activity-status">En espera</div>
+      </div>
+      <button type="button" class="btn btn-secondary" id="activity-close">Cerrar</button>
+    </div>
+    <div class="activity-body" id="activity-log"></div>
+    <div class="activity-footer">Logs en tiempo real del scan (fuentes, DNS, HTTP, scoring...)</div>
+  </aside>
 
   <script>
     const state = {{
@@ -180,7 +248,11 @@ def render_dashboard(version=None, sources=None):
       rows: [],
       sortKey: "score",
       sortDir: "desc",
+      activityLogs: [],
     }};
+
+    const STORAGE_KEY = "ctfr-reloaded-dashboard-v1";
+    const scoreBuckets = {score_buckets_json};
 
     const form = document.getElementById("scan-form");
     const loading = document.getElementById("loading");
@@ -189,6 +261,185 @@ def render_dashboard(version=None, sources=None):
     const empty = document.getElementById("empty");
     const exportJsonBtn = document.getElementById("export-json");
     const exportHtmlBtn = document.getElementById("export-html");
+    const activityPanel = document.getElementById("activity-panel");
+    const activityBackdrop = document.getElementById("activity-backdrop");
+    const activityLog = document.getElementById("activity-log");
+    const activityStatus = document.getElementById("activity-status");
+    const activityClose = document.getElementById("activity-close");
+    const activityOpen = document.getElementById("activity-open");
+    const activityOpenInline = document.getElementById("activity-open-inline");
+    let activeEventSource = null;
+
+    const logPrefix = {{
+      info: "[*]",
+      debug: "[~]",
+      success: "[+]",
+      warn: "[!]",
+      error: "[X]",
+    }};
+
+    function updateActivityControls() {{
+      const hasLogs = state.activityLogs.length > 0;
+      const isOpen = activityPanel.classList.contains("open");
+      const show = hasLogs && !isOpen;
+      activityOpen.classList.toggle("hidden", !show);
+      activityOpenInline.classList.toggle("hidden", !hasLogs);
+    }}
+
+    function openActivityPanel(statusText, resetLogs) {{
+      if (resetLogs !== false) {{
+        state.activityLogs = [];
+        activityLog.innerHTML = "";
+      }}
+      activityPanel.classList.add("open");
+      activityBackdrop.classList.add("open");
+      activityStatus.textContent = statusText || "Escaneando...";
+      updateActivityControls();
+    }}
+
+    function reopenActivityPanel() {{
+      if (!state.activityLogs.length) return;
+      openActivityPanel(activityStatus.textContent || "Ultimo scan", false);
+    }}
+
+    function closeActivityPanel() {{
+      activityPanel.classList.remove("open");
+      activityBackdrop.classList.remove("open");
+      updateActivityControls();
+    }}
+
+    function appendActivityLog(event) {{
+      state.activityLogs.push(event);
+      const line = document.createElement("div");
+      line.className = "log-line " + (event.level || "info");
+      const prefix = logPrefix[event.level] || "[?]";
+      const time = event.time ? `<span class="ts">${{event.time}}</span>` : "";
+      line.innerHTML = `${{time}}${{prefix}} ${{escapeHtml(event.message || "")}}`;
+      activityLog.appendChild(line);
+      activityLog.scrollTop = activityLog.scrollHeight;
+      updateActivityControls();
+    }}
+
+    function collectFormState() {{
+      const formData = new FormData(form);
+      return {{
+        domain: formData.get("domain") || "",
+        source: formData.get("source") || "all",
+        resolve: Boolean(formData.get("resolve")),
+        alive: Boolean(formData.get("alive")),
+        takeover: Boolean(formData.get("takeover")),
+        tls: Boolean(formData.get("tls")),
+        cdn: Boolean(formData.get("cdn")),
+        score: formData.get("score") !== null,
+      }};
+    }}
+
+    function applyFormState(formState) {{
+      if (!formState) return;
+      document.getElementById("domain").value = formState.domain || "";
+      document.getElementById("source").value = formState.source || "all";
+      for (const flag of ["resolve", "alive", "takeover", "tls", "cdn", "score"]) {{
+        const input = form.querySelector(`[name="${{flag}}"]`);
+        if (input) input.checked = Boolean(formState[flag]);
+      }}
+    }}
+
+    function readSession() {{
+      try {{
+        const raw = sessionStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      }} catch (error) {{
+        return null;
+      }}
+    }}
+
+    function persistSession() {{
+      try {{
+        const snapshot = {{
+          payload: state.payload,
+          form: collectFormState(),
+          filter: document.getElementById("filter").value || "",
+          sortKey: state.sortKey,
+          sortDir: state.sortDir,
+          activityLogs: state.activityLogs,
+          activityStatus: activityStatus.textContent,
+          savedAt: new Date().toISOString(),
+        }};
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+      }} catch (error) {{
+        // Ignorar errores de cuota o modo privado restrictivo.
+      }}
+    }}
+
+    function restoreActivityLogs(logs, statusText) {{
+      activityLog.innerHTML = "";
+      state.activityLogs = Array.isArray(logs) ? [...logs] : [];
+      for (const event of state.activityLogs) {{
+        const line = document.createElement("div");
+        line.className = "log-line " + (event.level || "info");
+        const prefix = logPrefix[event.level] || "[?]";
+        const time = event.time ? `<span class="ts">${{event.time}}</span>` : "";
+        line.innerHTML = `${{time}}${{prefix}} ${{escapeHtml(event.message || "")}}`;
+        activityLog.appendChild(line);
+      }}
+      activityStatus.textContent = statusText || "Ultimo scan (restaurado)";
+      updateActivityControls();
+    }}
+
+    function restoreSession() {{
+      const saved = readSession();
+      if (!saved) return false;
+
+      if (saved.form) applyFormState(saved.form);
+
+      if (!saved.payload) return Boolean(saved.form);
+
+      state.sortKey = saved.sortKey || "score";
+      state.sortDir = saved.sortDir || "desc";
+      applyScanResult(saved.payload);
+
+      const filterInput = document.getElementById("filter");
+      if (saved.filter) {{
+        filterInput.value = saved.filter;
+      }}
+      renderTable();
+
+      if (saved.activityLogs && saved.activityLogs.length) {{
+        restoreActivityLogs(saved.activityLogs, saved.activityStatus);
+      }}
+
+      const meta = document.getElementById("result-meta");
+      if (meta && saved.savedAt) {{
+        const when = new Date(saved.savedAt);
+        const label = Number.isNaN(when.getTime())
+          ? "restaurado de esta pestana"
+          : "restaurado " + when.toLocaleTimeString();
+        meta.textContent = `${{state.rows.length}} resultados (${{label}})`;
+      }}
+
+      setError("");
+      return true;
+    }}
+
+    function applyScanResult(payload) {{
+      state.payload = payload;
+      state.rows = payloadToRows(payload);
+      const stats = computeStats(state.rows);
+      renderStats(stats);
+      renderTable();
+      results.classList.remove("hidden");
+      empty.classList.add("hidden");
+      exportJsonBtn.disabled = false;
+      exportHtmlBtn.disabled = false;
+      persistSession();
+    }}
+
+    function stopActiveStream() {{
+      if (activeEventSource) {{
+        activeEventSource.close();
+        activeEventSource = null;
+      }}
+    }}
 
     function escapeHtml(value) {{
       return String(value)
@@ -237,12 +488,14 @@ def render_dashboard(version=None, sources=None):
           }}
         }}
       }}
-      const distribution = {{ "10": 0, "15": 0, "20": 0, "25+": 0 }};
+      const distribution = Object.fromEntries(scoreBuckets.map((bucket) => [bucket.label, 0]));
       for (const score of scores) {{
-        if (score >= 25) distribution["25+"] += 1;
-        else if (score >= 20) distribution["20"] += 1;
-        else if (score >= 15) distribution["15"] += 1;
-        else distribution["10"] += 1;
+        for (const bucket of scoreBuckets) {{
+          if (score >= bucket.min && score <= bucket.max) {{
+            distribution[bucket.label] += 1;
+            break;
+          }}
+        }}
       }}
       const domains = new Set(rows.map((row) => row.domain));
       return {{
@@ -330,38 +583,80 @@ def render_dashboard(version=None, sources=None):
     async function runScan(event) {{
       event.preventDefault();
       setError("");
+      stopActiveStream();
       loading.classList.remove("hidden");
       exportJsonBtn.disabled = true;
       exportHtmlBtn.disabled = true;
 
       const formData = new FormData(form);
+      const domain = formData.get("domain");
       const params = new URLSearchParams();
-      params.set("domain", formData.get("domain"));
+      params.set("domain", domain);
       params.set("source", formData.get("source") || "all");
       for (const flag of ["resolve", "alive", "takeover", "tls", "cdn", "score"]) {{
         if (formData.get(flag)) params.set(flag, "true");
       }}
 
-      try {{
-        const response = await fetch(`/scan?${{params.toString()}}`);
-        const payload = await response.json();
-        if (!response.ok) {{
-          throw new Error(payload.detail || "Error al escanear");
+      openActivityPanel("Escaneando " + domain + "...");
+
+      await new Promise((resolve, reject) => {{
+        let finished = false;
+        const finish = (fn, value) => {{
+          if (finished) return;
+          finished = true;
+          stopActiveStream();
+          fn(value);
+        }};
+
+        activeEventSource = new EventSource("/scan/stream?" + params.toString());
+
+        activeEventSource.addEventListener("log", (message) => {{
+          try {{
+            appendActivityLog(JSON.parse(message.data));
+          }} catch (error) {{
+            appendActivityLog({{ level: "debug", message: message.data }});
+          }}
+        }});
+
+        activeEventSource.addEventListener("result", (message) => {{
+          try {{
+            const payload = JSON.parse(message.data);
+            activityStatus.textContent = "Completado";
+            appendActivityLog({{ level: "success", message: "Resultados listos en el dashboard" }});
+            applyScanResult(payload);
+            persistSession();
+            finish(resolve);
+          }} catch (error) {{
+            finish(reject, error);
+          }}
+        }});
+
+        activeEventSource.addEventListener("failed", (message) => {{
+          let detail = "Error al escanear";
+          try {{
+            detail = JSON.parse(message.data).detail || detail;
+          }} catch (error) {{}}
+          appendActivityLog({{ level: "error", message: detail }});
+          activityStatus.textContent = "Error";
+          setError(detail);
+          finish(reject, new Error(detail));
+        }});
+
+        activeEventSource.onerror = () => {{
+          if (finished) return;
+          const detail = "Conexion con el servidor interrumpida";
+          appendActivityLog({{ level: "error", message: detail }});
+          activityStatus.textContent = "Desconectado";
+          setError(detail);
+          finish(reject, new Error(detail));
+        }};
+      }}).catch((error) => {{
+        if (!errorBox.textContent) {{
+          setError(error.message || "No se pudo completar el scan");
         }}
-        state.payload = payload;
-        state.rows = payloadToRows(payload);
-        const stats = computeStats(state.rows);
-        renderStats(stats);
-        renderTable();
-        results.classList.remove("hidden");
-        empty.classList.add("hidden");
-        exportJsonBtn.disabled = false;
-        exportHtmlBtn.disabled = false;
-      }} catch (error) {{
-        setError(error.message || "No se pudo completar el scan");
-      }} finally {{
+      }}).finally(() => {{
         loading.classList.add("hidden");
-      }}
+      }});
     }}
 
     function downloadFile(filename, content, type) {{
@@ -387,7 +682,15 @@ def render_dashboard(version=None, sources=None):
     }}
 
     form.addEventListener("submit", runScan);
-    document.getElementById("filter").addEventListener("input", renderTable);
+    form.addEventListener("change", persistSession);
+    activityClose.addEventListener("click", closeActivityPanel);
+    activityBackdrop.addEventListener("click", closeActivityPanel);
+    activityOpen.addEventListener("click", reopenActivityPanel);
+    activityOpenInline.addEventListener("click", reopenActivityPanel);
+    document.getElementById("filter").addEventListener("input", () => {{
+      renderTable();
+      persistSession();
+    }});
     exportJsonBtn.addEventListener("click", () => {{
       if (!state.payload) return;
       const domain = state.payload.domain || "scan";
@@ -405,13 +708,16 @@ def render_dashboard(version=None, sources=None):
           state.sortDir = key === "score" ? "desc" : "asc";
         }}
         renderTable();
+        persistSession();
       }});
     }});
 
-    const params = new URLSearchParams(window.location.search);
-    const initialDomain = params.get("domain");
-    if (initialDomain) {{
-      document.getElementById("domain").value = initialDomain;
+    if (!restoreSession()) {{
+      const params = new URLSearchParams(window.location.search);
+      const initialDomain = params.get("domain");
+      if (initialDomain) {{
+        document.getElementById("domain").value = initialDomain;
+      }}
     }}
   </script>
 </body>
@@ -423,4 +729,7 @@ def render_dashboard(version=None, sources=None):
         extra_styles=extra_styles,
         score_help=_score_help_block(),
         keywords_json=json.dumps(list(HIGH_VALUE_KEYWORDS)),
+        score_buckets_json=json.dumps(
+            [{"label": label, "min": low, "max": high} for label, low, high in SCORE_BUCKETS]
+        ),
     )

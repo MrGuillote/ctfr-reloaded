@@ -3,6 +3,9 @@
 ## 4.2.0
 
 - **Dashboard web** en `http://127.0.0.1:9473/` con stats, filtros, tabla ordenable y export JSON/HTML
+- **Consola lateral en vivo** durante el scan (SSE `/scan/stream`) con logs de fuentes, DNS, HTTP y scoring
+- **Persistencia en pestana** via `sessionStorage` (resultados, filtros y formulario sobreviven al F5)
+- Distribucion de scores por rangos reales (0-14 ... 60-100)
 - Reporte HTML (`-o reporte.html`) rediseñado con el mismo estilo visual
 - Endpoint `POST /report` para generar HTML desde resultados JSON
 - `/docs` se mantiene para la API
