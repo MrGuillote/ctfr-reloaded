@@ -27,22 +27,13 @@ Ver salida completa en [docs/demo-terminal.txt](docs/demo-terminal.txt).
 
 ### Dashboard web
 
-Resultados del scan (stats, tabla, scores):
-
 <p align="center">
-  <img src="docs/dashboard-scan.svg" alt="CTFR-Reloaded — dashboard con resultados del scan" width="920"/>
+  <img src="docs/dashboard-scan.png" alt="Dashboard — resultados del scan" width="920"/>
 </p>
 
-Consola de actividad en vivo (log lateral):
-
 <p align="center">
-  <img src="docs/dashboard-log.svg" alt="CTFR-Reloaded — consola de actividad durante el scan" width="920"/>
+  <img src="docs/dashboard-log.png" alt="Dashboard — consola de actividad" width="920"/>
 </p>
-
-<p align="center"><sub>
-  Sube tus capturas como <code>docs/dashboard-scan.png</code> y <code>docs/dashboard-log.png</code>,
-  luego cambia las rutas <code>.svg</code> → <code>.png</code> en las lineas de arriba.
-</sub></p>
 
 ## Instalacion
 
@@ -146,7 +137,7 @@ python ctfr.py -d ejemplo.com --watch --interval 1800 \
 python ctfr.py -d ejemplo.com --pipe | httpx -silent
 ```
 
-## Features v4.1
+## Features
 
 | Feature | Flag |
 |---------|------|

@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY pyproject.toml README.md requirements.txt ./
+COPY pyproject.toml README.md ./
 COPY ctfr_reloaded ./ctfr_reloaded
 COPY ctfr.py ./
 

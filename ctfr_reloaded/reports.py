@@ -66,7 +66,7 @@ def _format_bool_cell(item, key):
     return "yes" if item.get(key) else "no"
 
 
-def _report_styles():
+def report_styles():
     return """
     :root {
       --bg: #0b1220;
@@ -272,7 +272,7 @@ def _render_table_rows(results):
     return "".join(rows)
 
 
-def _score_help_block():
+def score_help_block():
     return """
     <details>
       <summary>Como funciona el score</summary>
@@ -338,7 +338,7 @@ def render_html_report(results, title="CTFR-Reloaded Report"):
 </body>
 </html>""".format(
         title=html.escape(title),
-        styles=_report_styles(),
+        styles=report_styles(),
         version=html.escape(__version__),
         generated=generated,
         stats_cards=_render_stats_cards(stats),
@@ -346,7 +346,7 @@ def render_html_report(results, title="CTFR-Reloaded Report"):
         keywords=_render_keywords(stats),
         total=stats["total"],
         rows=_render_table_rows(results),
-        score_help=_score_help_block(),
+        score_help=score_help_block(),
     )
 
 
@@ -396,18 +396,6 @@ def save_pdf_output(results, output_file):
             pdf.ln()
 
     pdf.output(output_file)
-
-
-def stats_from_payload(payload):
-    """Convierte respuesta JSON de /scan en stats para el dashboard."""
-    if "subdomains" in payload:
-        results = {payload["domain"]: payload["subdomains"]}
-    else:
-        results = {
-            domain: block["subdomains"]
-            for domain, block in payload.get("results", {}).items()
-        }
-    return compute_report_stats(results)
 
 
 def payload_to_results(payload):
