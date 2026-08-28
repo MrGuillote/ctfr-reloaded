@@ -10,6 +10,7 @@ from ctfr_reloaded.domains import (
 # Fuentes 100% gratuitas, sin API key ni registro.
 FREE_SOURCES = (
     "crtsh",
+    "crtname",
     "certspotter",
     "hackertarget",
     "wayback",
@@ -33,7 +34,21 @@ class CrtShSource(CertificateSource):
     def fetch(self, session, domain, timeout, retries, console):
         safe_domain = sanitize_domain_for_url(domain)
         url = self.url_template.format(domain=safe_domain)
-        return _fetch_json(session, url, domain, timeout, retries, console, self.name)
+        # crt.sh suele ser lento; dar mas margen de lectura
+        effective_timeout = max(timeout, 60)
+        return _fetch_json(
+            session, url, domain, effective_timeout, retries, console, self.name
+        )
+
+
+class CrtNameSource(CertificateSource):
+    name = "crtname"
+    url_template = "https://crt.name/v1/search?apex={domain}"
+
+    def fetch(self, session, domain, timeout, retries, console):
+        safe_domain = sanitize_domain_for_url(domain)
+        url = self.url_template.format(domain=safe_domain)
+        return _fetch_text(session, url, domain, timeout, retries, console, self.name)
 
 
 class CertspotterSource(CertificateSource):
@@ -216,6 +231,14 @@ def extract_from_wayback(entries, target, exclude_wildcards=False):
 
 
 def extract_from_anubis(text, target, exclude_wildcards=False):
+    return _extract_lines(text, target, exclude_wildcards)
+
+
+def extract_from_crtname(text, target, exclude_wildcards=False):
+    return _extract_lines(text, target, exclude_wildcards)
+
+
+def _extract_lines(text, target, exclude_wildcards=False):
     subdomains = set()
     for line in str(text).splitlines():
         host = line.strip().lower()
@@ -276,6 +299,7 @@ def extract_from_rapiddns(html, target, exclude_wildcards=False):
 
 SOURCE_REGISTRY = {
     "crtsh": (CrtShSource(), extract_from_crtsh),
+    "crtname": (CrtNameSource(), extract_from_crtname),
     "certspotter": (CertspotterSource(), extract_from_certspotter),
     "hackertarget": (HackerTargetSource(), extract_from_hackertarget),
     "wayback": (WaybackSource(), extract_from_wayback),

@@ -147,9 +147,28 @@ def build_options(args, config):
     )
 
 
+def _explicit_cli_flags(parser, argv):
+    """Marca argumentos pasados en CLI para no sobrescribirlos con config."""
+    explicit = {}
+    for action in parser._actions:
+        dest = action.dest
+        if dest in ("help", "version"):
+            continue
+        for opt in action.option_strings:
+            if opt in argv:
+                explicit[dest] = True
+                break
+            prefix = opt + "="
+            if any(arg.startswith(prefix) for arg in argv):
+                explicit[dest] = True
+                break
+    return explicit
+
+
 def run_scan(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
+    cli_argv = argv if argv is not None else sys.argv[1:]
 
     if args.init_config:
         path = save_default_config()
@@ -158,7 +177,7 @@ def run_scan(argv=None):
 
     config = load_config(args.config)
     args_dict = vars(args)
-    args_dict["_explicit"] = {}
+    args_dict["_explicit"] = _explicit_cli_flags(parser, cli_argv)
     apply_config_defaults(args_dict, config)
     for key, value in args_dict.items():
         if key != "_explicit":

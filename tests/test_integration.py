@@ -94,6 +94,22 @@ def test_integration_hackertarget_source(scan_options):
 
 
 @responses.activate
+def test_integration_crtname_source(scan_options):
+    scan_options.source = "crtname"
+    responses.add(
+        responses.GET,
+        "https://crt.name/v1/search?apex=ejemplo.com",
+        body="api.ejemplo.com\nwww.ejemplo.com",
+        status=200,
+    )
+
+    console = Console(verbose=False, use_colors=False)
+    results = scan_domains(["ejemplo.com"], scan_options, console)
+    names = [item["name"] for item in results["ejemplo.com"]]
+    assert "api.ejemplo.com" in names
+
+
+@responses.activate
 def test_integration_bufferover_source(scan_options):
     scan_options.source = "bufferover"
     responses.add(
